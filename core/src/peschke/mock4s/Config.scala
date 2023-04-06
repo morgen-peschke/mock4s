@@ -13,6 +13,7 @@ import fs2.text
 import io.circe.parser
 import org.http4s.Uri
 import peschke.mock4s.models.Settings
+import peschke.mock4s.utils.Circe._
 
 import java.nio.file.{Path => NioPath, Paths => NioPaths}
 import java.nio.file.InvalidPathException
@@ -92,8 +93,18 @@ object Config {
           .string
           .flatMap { raw =>
             parser
-              .decode[Settings](raw)
-              .leftMap(e => new IllegalArgumentException("Invalid settings JSON", e))
+              .parse(raw)
+              .leftMap(e => new IllegalArgumentException(s"Malformed settings JSON: ${e.getMessage}"))
+              .flatMap { json =>
+                json.hcursor
+                  .asAcc[Settings]
+                  .toEither
+                  .leftMap { decodeErrors =>
+                    new IllegalArgumentException(
+                      decodeErrors.mkString_("Invalid settings JSON:\n", "\n", "\n")
+                    )
+                  }
+              }
               .liftTo[F]
           }
       }

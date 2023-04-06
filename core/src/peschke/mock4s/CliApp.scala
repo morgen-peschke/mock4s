@@ -9,9 +9,12 @@ object CliApp extends IOApp {
 
   implicit val logging: LoggerFactory[IO] = Slf4jFactory[IO]
 
-  override def run(args: List[String]): IO[ExitCode] =
+  override def run(args: List[String]): IO[ExitCode] = {
+    val logger = LoggerFactory.getLogger[IO]
+
     Config.parse[IO](args).load.redeemWith(
-      _ => ExitCode.Error.pure[IO],
+      logger.error(_)("Unable to start up") >> ExitCode.Error.pure[IO],
       SetupServer.setup[IO](_).useForever.as(ExitCode.Success)
     )
+  }
 }

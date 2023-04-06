@@ -2,12 +2,12 @@ package peschke.mock4s.utils
 
 import cats.data.{Chain, NonEmptyChain, Validated}
 import cats.syntax.all._
-import cats.{Eq, Semigroup}
+import cats.{Defer, Eq, Semigroup}
 import io.circe.Decoder.{AccumulatingResult, Result}
-import io.circe.syntax._
 import io.circe._
+import io.circe.syntax._
 import org.http4s.Uri.Path
-import org.http4s.{Header, HttpVersion, Method, Query, Status}
+import org.http4s._
 import org.typelevel.ci.CIString
 
 object Circe {
@@ -24,6 +24,40 @@ object Circe {
         Validated.condNel(value === sentinel, (), DecodingFailure(errorMessage, c.history))
       }
     }
+  }
+
+  private case class DeferredDecoder[A](decoder: () => Decoder[A]) extends Decoder[A] {
+    override def apply(c: HCursor): Result[A] = decodeAccumulating(c).toEither.leftMap(_.head)
+
+    override def decodeAccumulating(c: HCursor): AccumulatingResult[A] = {
+      @annotation.tailrec
+      def loop(f: () => Decoder[A]): AccumulatingResult[A] =
+        f() match {
+          case DeferredDecoder(f) => loop(f)
+          case next => next.decodeAccumulating(c)
+        }
+      loop(decoder)
+    }
+  }
+  implicit val decoderDefer: Defer[Decoder] = new Defer[Decoder] {
+    override def defer[A](fa: => Decoder[A]): Decoder[A] = DeferredDecoder(() => fa)
+  }
+
+  private case class DeferredEncoder[A](encoder: () => Encoder[A]) extends Encoder[A] {
+    override def apply(a: A): Json = {
+      @annotation.tailrec
+      def loop(f: () => Encoder[A]): Json =
+        f() match {
+          case DeferredEncoder(f) => loop(f)
+          case next => next(a)
+        }
+
+      loop(encoder)
+    }
+  }
+
+  implicit val encoderDefer: Defer[Encoder] = new Defer[Encoder] {
+    override def defer[A](fa: => Encoder[A]): Encoder[A] = DeferredEncoder(() => fa)
   }
 
   implicit def decoderSemigroup[A]: Semigroup[Decoder[A]] =
@@ -46,7 +80,6 @@ object Circe {
 
   def anyOf[A](d0: Decoder[A], dN: Decoder[A]*): Decoder[A] =
     NonEmptyChain.fromChainPrepend(d0, Chain.fromSeq(dN)).reduce
-
 
   implicit final class DecoderHelpers(private val c: ACursor) extends AnyVal {
     def asAcc[A: Decoder]: AccumulatingResult[A] = Decoder[A].tryDecodeAccumulating(c)
@@ -85,27 +118,6 @@ object Circe {
   }
   implicit val httpVersionEncoder: Encoder[HttpVersion] = Encoder[String].contramap(_.renderString)
 
-//  implicit val responseClassDecoder: Decoder[Status.ResponseClass] = accumulatingDecoder { c =>
-//    c.asAcc[String]
-//      .map(_.toLowerCase)
-//      .andThen {
-//        case "info" => Status.Informational.validNel
-//        case "success" => Status.Successful.validNel
-//        case "redirect" => Status.Redirection.validNel
-//        case "client-error" => Status.ClientError.validNel
-//        case "server-error" => Status.ServerError.validNel
-//        case _ =>
-//          DecodingFailure("Expected one of: info|success|redirect|client-error|server-error", c.history).invalidNel
-//      }
-//  }
-//  implicit val responseClassEncoder: Encoder[Status.ResponseClass] = Encoder.instance {
-//    case Status.Informational => "info".asJson
-//    case Status.Successful => "success".asJson
-//    case Status.Redirection => "redirect".asJson
-//    case Status.ClientError => "client-error".asJson
-//    case Status.ServerError => "server-error".asJson
-//  }
-
   implicit val headerDecoder: Decoder[Header.Raw] = accumulatingDecoder { h =>
     (h.downField("name").asAcc[String].map(CIString(_)), h.downField("value").asAcc[String]).mapN(Header.Raw.apply)
   }
@@ -128,4 +140,16 @@ object Circe {
     }
   }
   implicit val queryEncoder: Encoder[Query] = Encoder[String].contramap(_.renderString)
+
+  final case class GeneratedDecoder[A](decoder: Decoder[A])
+
+  object GeneratedDecoder {
+    def apply[A](implicit MD: GeneratedDecoder[A]): MD.type = MD
+  }
+
+  final case class GeneratedEncoder[A](encoder: Encoder[A])
+
+  object GeneratedEncoder {
+    def apply[A](implicit ME: GeneratedEncoder[A]): ME.type = ME
+  }
 }

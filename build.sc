@@ -25,6 +25,8 @@ val MUnit = Set(
   ivy"org.scalacheck::scalacheck:1.17.0",
   ivy"org.scalameta::munit-scalacheck:0.7.29"
 )
+val SourceCode = ivy"com.lihaoyi::sourcecode:0.3.0"
+
 trait StyleModule extends ScalafmtModule with ScalafixModule {
   override def scalafixIvyDeps = super.scalafixIvyDeps() ++ Agg(
     ivy"com.github.liancheng::organize-imports:0.6.0",
@@ -76,19 +78,16 @@ trait CommonModule
   )
 }
 
-trait UsingScalaTestModule extends TestModule.ScalaTest with StyleModule
-trait UsingMunitTestModule extends TestModule.Munit with StyleModule
-
 object core extends CommonModule {
   override def scalaVersion: T[String] = Scala13
 
   override def ivyDeps =
-    Agg(SuperTagged, Enumeratum, Ciris, Log4Cats, Decline) ++
+    Agg(SourceCode, SuperTagged, Enumeratum, Ciris, Log4Cats, Decline) ++
       Agg.from(Http4s ++ Circe)
 
   override def runIvyDeps = Agg(ivy"ch.qos.logback:logback-classic:1.2.10")
 
-  object test extends Tests with UsingScalaTestModule {
+  object test extends Tests with TestModule.Munit with StyleModule {
     override def ivyDeps: T[Agg[Dep]] = super.ivyDeps() ++ Agg.from(MUnit)
   }
 }

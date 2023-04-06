@@ -15,7 +15,7 @@ object Body {
   final case class Bytes(hexString: HexString) extends Body
 
   object HexString extends supertagged.NewType[BigInt] {
-    def of(bytes: Array[Byte]): HexString = apply(BigInt(bytes))
+    def of(bytes: Vector[Byte]): HexString = apply(BigInt(bytes.toArray))
 
     implicit val decoder: Decoder[Type] = accumulatingDecoder { c =>
       c.asAcc[String]

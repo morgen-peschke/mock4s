@@ -3,7 +3,6 @@ package peschke.mock4s.algebras
 import cats.effect.kernel.Concurrent
 import cats.syntax.all._
 import org.http4s.Request
-import org.http4s.circe.CirceEntityDecoder.circeEntityDecoder
 import peschke.mock4s.models.Body.HexString
 import peschke.mock4s.models.ParsedBody
 
@@ -11,14 +10,20 @@ trait BodyParser[F[_]] {
   def parse(request: Request[F]): F[ParsedBody]
 }
 object BodyParser {
-  def default[F[_]: Concurrent]: BodyParser[F] = new BodyParser[F] {
-    def decodeBytes(request: Request[F]): F[Either[ParsedBody, Array[Byte]]] =
-      request
-        .attemptAs[Array[Byte]]
-        .value
-        .map(_.leftMap(decodeFailure => ParsedBody.CouldNotDecode(decodeFailure.getMessage)))
+  def apply[F[_]](implicit BP: BodyParser[F]): BP.type = BP
 
-    def decodeText(bytes: Array[Byte]): F[Either[ParsedBody, (String, HexString)]] =
+  def default[F[_]: Concurrent]: BodyParser[F] = new BodyParser[F] {
+    def decodeBytes(request: Request[F]): F[Either[ParsedBody, Vector[Byte]]] =
+      request
+        .body
+        .compile
+        .toVector
+        .map { bytes =>
+          if (bytes.isEmpty) ParsedBody.EmptyBody.asLeft
+          else bytes.asRight[ParsedBody]
+        }
+
+    def decodeText(bytes: Vector[Byte]): F[Either[ParsedBody, (String, HexString)]] =
       if (bytes.isEmpty) ParsedBody.EmptyBody.asLeft.pure[F].widen
       else
         fs2.Stream

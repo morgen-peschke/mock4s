@@ -6,7 +6,6 @@ import org.http4s._
 import peschke.mock4s.algebras.{RequestMatcher, ResponseRenderer}
 
 object MockApp {
-  def default[F[_]: Monad](requestMatcher: RequestMatcher[F],
-                           responseRenderer: ResponseRenderer[F]): HttpApp[F] =
-    HttpApp[F](requestMatcher.findResponse(_).flatMap(responseRenderer.render))
+  def default[F[_]: Monad: RequestMatcher: ResponseRenderer]: HttpApp[F] =
+    HttpApp[F](RequestMatcher[F].findResponse(_) >>= ResponseRenderer[F].render)
 }

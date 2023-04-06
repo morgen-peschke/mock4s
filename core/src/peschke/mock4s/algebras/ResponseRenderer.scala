@@ -9,6 +9,8 @@ trait ResponseRenderer[F[_]] {
   def render(responseDef: ResponseDef): F[Response[F]]
 }
 object ResponseRenderer {
+  def apply[F[_]](implicit RR: ResponseRenderer[F]): RR.type = RR
+
   def default[F[_]: Applicative]: ResponseRenderer[F] =
     responseDef => {
       val base = Response[F](

@@ -23,7 +23,7 @@ object ResponseDef {
   implicit val decoder: Decoder[ResponseDef] = accumulatingDecoder { c =>
     (
       c.downField("status").asAcc[Status],
-      c.downField("httpVersion").asAcc[HttpVersion],
+      c.downField("httpVersion").asAcc[Option[HttpVersion]].map(_.getOrElse(HttpVersion.`HTTP/1.0`)),
       c.downField("headers").asAcc[List[Header.Raw]],
       c.downField("body").asAcc[Body]
     ).mapN(ResponseDef.apply)

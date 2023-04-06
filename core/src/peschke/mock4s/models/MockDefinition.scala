@@ -3,42 +3,24 @@ package peschke.mock4s.models
 import cats.syntax.all._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
-import org.http4s.Uri.Path
-import org.http4s.{Method, Query}
-import peschke.mock4s.models.MockDefinition.{Action, RouteDef}
-import peschke.mock4s.predicates.Predicate
+import peschke.mock4s.models.MockDefinition.Action
+import peschke.mock4s.predicates.{RequestPredicate, RoutePredicate}
 import peschke.mock4s.utils.Circe._
 
-final case class MockDefinition(
-                                 route: RouteDef,
-                                 actions: List[Action]
-                               )
+final case class MockDefinition(name: String, route: RoutePredicate.Type, actions: List[Action])
 object MockDefinition {
-  object SimpleMethodPredicate extends Predicate.Simple[Method]
-  object SimplePathPredicate extends Predicate.Simple[Path]
-  object SimpleQueryPredicate extends Predicate.Simple[Query]
-
-  final case class RouteDef(method: SimpleMethodPredicate.ADT, path: SimplePathPredicate.ADT)
-  final case class Action(when: RequestPattern, respondWith: ResponseDef)
-
-  implicit val routeDefDecoder: Decoder[RouteDef] = accumulatingDecoder { c =>
-    (
-      c.downField("method").asAcc[SimpleMethodPredicate.ADT],
-      c.downField("path").asAcc[SimplePathPredicate.ADT]
-    ).mapN(RouteDef.apply)
-  }
-  implicit val routeDefEncoder: Encoder[RouteDef] = Encoder.instance { rd =>
-    Json.obj("method" := rd.method, "path" := rd.path)
-  }
+  final case class Action(name: String, when: RequestPredicate.Type, respondWith: ResponseDef)
 
   implicit val actionDecoder: Decoder[Action] = accumulatingDecoder { c =>
     (
-      c.downField("when").asAcc[RequestPattern],
+      c.downField("name").asAcc[String],
+      c.downField("when").asAcc[RequestPredicate.Type],
       c.downField("respond-with").asAcc[ResponseDef]
     ).mapN(Action.apply)
   }
   implicit val actionEncoder: Encoder[Action] = Encoder.instance { a =>
     Json.obj(
+      "name" := a.name,
       "when" := a.when,
       "respond-with" := a.respondWith
     )
@@ -46,12 +28,14 @@ object MockDefinition {
 
   implicit val decoder: Decoder[MockDefinition] = accumulatingDecoder { c =>
     (
-      c.downField("route").asAcc[RouteDef],
+      c.downField("name").asAcc[String],
+      c.downField("route").asAcc[RoutePredicate.Type],
       c.downField("actions").asAcc[List[Action]]
     ).mapN(MockDefinition.apply)
   }
   implicit val encoder: Encoder[MockDefinition] = Encoder.instance { mockDef =>
     Json.obj(
+      "name" := mockDef.name,
       "route" := mockDef.route,
       "actions" := mockDef.actions
     )
