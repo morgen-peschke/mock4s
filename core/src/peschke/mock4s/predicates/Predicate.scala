@@ -126,7 +126,7 @@ object Predicate {
       implicit def encoder[A]: Encoder[Always[A]] =
         Encoder.instance(_ => Json.fromString("any"))
 
-      implicit def eq[A]: Eq[Always[A]] = Eq.fromUniversalEquals
+      implicit def eq[A]: Eq[Always[A]] = Eq.instance((_, _) => true)
     }
 
     final case class Never[A]() extends Fixed[A] {
@@ -139,7 +139,7 @@ object Predicate {
       implicit def encoder[A]: Encoder[Never[A]] =
         Encoder.instance(_ => Json.fromString("fail"))
 
-      implicit def eq[A]: Eq[Never[A]] = Eq.fromUniversalEquals
+      implicit def eq[A]: Eq[Never[A]] = Eq.instance((_, _) => true)
     }
 
     implicit def decoder[A]: Decoder[Fixed[A]] = anyOf[Fixed[A]](
@@ -152,7 +152,11 @@ object Predicate {
       case p@Never() => p.asJson
     }
 
-    implicit def eq[A]: Eq[Fixed[A]] = Eq.fromUniversalEquals
+    implicit def eq[A]: Eq[Fixed[A]] = Eq.instance {
+      case (Always(), Always()) => true
+      case (Never(), Never()) => true
+      case _ => false
+    }
   }
 
   sealed abstract class UsingEq[A] extends Predicate[A]

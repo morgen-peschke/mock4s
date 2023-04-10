@@ -11,7 +11,7 @@ import peschke.mock4s.utils.Circe._
 
 import scala.annotation.nowarn
 
-trait MUnitCirce extends Assertions {
+trait MUnitCirce { self: Assertions =>
 
   private def munitComparisonHandler(
                                       actualObtained: Any,

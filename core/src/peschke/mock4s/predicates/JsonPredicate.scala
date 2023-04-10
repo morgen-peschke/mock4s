@@ -11,7 +11,6 @@ import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators, UsingEq}
 import peschke.mock4s.utils.Circe._
 
 object JsonPredicate extends PredicateWrapper[Json] {
-
   final case class WithPath(pathOpt: Option[JsonPath],
                             when: Fixed[Json] |+| UsingEq[Json]) extends Predicate[Json] {
     override def test(a: Json): Boolean =
@@ -20,30 +19,29 @@ object JsonPredicate extends PredicateWrapper[Json] {
           case Segment.DownArray => true
           case _ => false
         }
-        val pathResultsOpt =
+        val pathResultsOpt: Option[Either[NonEmptyChain[Json], Json]] =
           NonEmptyChain
             .fromChain {
               path
                 .segments
-                .foldLeft[Chain[Json]](Chain.one(a)) { (jsonList, segment) =>
-                  segment match {
-                    case Segment.DownField(name) =>
-                      jsonList.flatMap(j => Chain.fromOption(j.hcursor.downField(name).focus))
-                    case Segment.AtIndex(value) =>
-                      jsonList.flatMap(j => Chain.fromOption(j.hcursor.downN(value).focus))
-                    case Segment.DownArray =>
-                      jsonList.flatMap(_.asArray.fold(Chain.empty[Json])(Chain.fromSeq))
-                  }
-                }
+                .foldLeft[Chain[Json]](Chain.one(a))(_ <<: _)
             }
             .map { nel =>
-              if (!expectingArray && nel.tail.isEmpty) nel.head
-              else Json.arr(nel.toNonEmptyVector.toVector: _*)
+              if (expectingArray) nel.asLeft
+              else if (nel.tail.isEmpty) nel.head.asRight
+              else Json.arr(nel.toNonEmptyVector.toVector: _*).asRight
             }
 
-        pathResultsOpt.exists(when.test)
+        // Special case: never accepts JSON that has nothing at the path
+        if (when === WhenNever) pathResultsOpt.isEmpty
+        else pathResultsOpt.exists {
+          case Right(json) => when.test(json)
+          case Left(jsonNec) => jsonNec.exists(when.test)
+        }
       }
   }
+
+  private val WhenNever: Fixed[Json] |+| UsingEq[Json] = lhs[Fixed[Json], UsingEq[Json]](Fixed.Never())
 
   type Base = WithPath
 

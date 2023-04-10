@@ -5,10 +5,10 @@ import io.circe.syntax._
 import munit._
 import peschke.mock4s.MUnitCirce
 import peschke.mock4s.models.JsonPath
-import peschke.mock4s.models.JsonPath.Segment.DownField
+import peschke.mock4s.models.JsonPath.Segment.BareField
 
 class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
-  private val path = JsonPath(DownField("foo") :: DownField("bar") :: Nil, ".foo.bar")
+  private val path = JsonPath.of(BareField("foo"), BareField("bar"))
 
   test("Always (no path)") {
     assertCodec(
@@ -21,7 +21,7 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
     assertCodec(
       JsonPredicate.always(path),
       Json.obj(
-        "path" := path.raw,
+        "path" := path,
         "when" := "any"
       )
     )
@@ -38,7 +38,7 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
     assertCodec(
       JsonPredicate.never(path),
       Json.obj(
-        "path" := path.raw,
+        "path" := path,
         "when" := "fail"
       )
     )
@@ -55,7 +55,7 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
     assertCodec(
       JsonPredicate.is(path, 5.asJson),
       Json.obj(
-        "path" := path.raw,
+        "path" := path,
         "when" := Json.obj("is" := 5)
       )
     )
@@ -72,7 +72,7 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
     assertCodec(
       JsonPredicate.in(path, 5.asJson :: 6.asJson :: Nil),
       Json.obj(
-        "path" := path.raw,
+        "path" := path,
         "when" := Json.obj("in" := Json.arr(5.asJson, 6.asJson))
       )
     )
@@ -89,7 +89,7 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
     assertCodec(
       JsonPredicate.not(JsonPredicate.is(path, 5.asJson)),
       Json.obj("!" := Json.obj(
-        "path" := path.raw,
+        "path" := path,
         "when" := Json.obj("is" := 5)
       ))
     )

@@ -6,6 +6,7 @@ import peschke.mock4s.algebras.Parser
 import peschke.mock4s.algebras.Parser.{ParseError, Result, State}
 import peschke.mock4s.models.JsonPath
 import peschke.mock4s.models.JsonPath.Segment
+import peschke.mock4s.models.JsonPath.Segment.{BareField, QuotedField}
 
 object JsonPathParser {
   object IdentifierChar extends supertagged.NewType[Char]
@@ -27,11 +28,6 @@ object JsonPathParser {
     }
   }
 
-  type HexChar = HexChar.Type
-
-  def finishField(fieldChars: NonEmptyChain[IdentifierChar]): Segment =
-    Segment.DownField(fieldChars.map(IdentifierChar.raw).mkString_(""))
-
   object bareIdentifier {
     val validChar: Parser[Option[IdentifierChar]] =
       Parser.accumulating[Option[IdentifierChar]] { input =>
@@ -39,20 +35,17 @@ object JsonPathParser {
           case None => Result.valid(none[IdentifierChar], input)
           case Some(char -> state) =>
             char match {
-              case '\'' | '"' | ']' =>
-                ParseError.one(s"Bare JSON field name contains unexpected semantic character '$char'", input)
-                  .invalid
               case '.' | '[' => Result.valid(none[IdentifierChar], input)
+              case c if c.isLetterOrDigit || c === '-' || c === '_' => Result.valid(IdentifierChar(char).some, state)
               case _ =>
-                if (char.isControl)
-                  ParseError.one(s"Bare JSON field name contains unexpected control character '$char'", input)
-                    .invalid
-                else Result.valid(IdentifierChar(char).some, state)
+                ParseError.one("Base JSON field names can only contain letters, digits, '-', or '_'", state).invalid
             }
         }
       }
 
-    val bareSegmentParser: Parser[Segment] = validChar.repeatWhileSomeNec.map(finishField)
+    val bareFieldParser: Parser[Segment] = validChar.repeatWhileSomeNec.map { fieldChars =>
+        BareField(fieldChars.map(IdentifierChar.raw).mkString_(""))
+    }
   }
 
   object quotedIdentifier {
@@ -124,7 +117,9 @@ object JsonPathParser {
         }
       }
 
-    val quotedSegmentParser: Parser[Segment] = validChar.repeatWhileSomeNec.map(finishField)
+    val quotedSegmentParser: Parser[Segment] = validChar.repeatWhileSomeNec.map { fieldChars =>
+      QuotedField(fieldChars.map(IdentifierChar.raw).mkString_(""))
+    }
   }
 
   val arrayIndex: Parser[Segment] = Parser.accumulating[Segment] { input =>
@@ -160,7 +155,7 @@ object JsonPathParser {
       Parser.findValid[Segment](quotedField, downArray).repeated.withEnclosingName
 
     val fieldAndChainedSegments: Parser[NonEmptyChain[Segment]] =
-      (Parser.findValid(quotedField, bareIdentifier.bareSegmentParser) ~+:> chainableSegments)
+      (Parser.findValid(quotedField, bareIdentifier.bareFieldParser) ~+:> chainableSegments)
         .withEnclosingName
 
     val arrayAndChainedSegments: Parser[NonEmptyChain[Segment]] =
@@ -175,15 +170,15 @@ object JsonPathParser {
       chunk.repeatedNec.map(_.flatten).withEnclosingName
   }
 
-  val parser: Parser[List[Segment]] =
+  val parser: Parser[Chain[Segment]] =
     Parser.findValid(
-      Parser.End.as(List.empty[Segment]).withName("empty path"),
-      (Parser.fixed('.') *> Parser.End).as(List.empty[Segment]).withName("root path"),
-      (jsonSegment.segmentParser <* Parser.End).map(result => result.toNonEmptyList.toList)
+      Parser.End.as(Chain.empty[Segment]).withName("empty path"),
+      (Parser.fixed('.') *> Parser.End).as(Chain.empty[Segment]).withName("root path"),
+      (jsonSegment.segmentParser <* Parser.End).map(result => result.toChain)
     )
 
   def parse(raw: String): ValidatedNec[ParseError, JsonPath] =
     parser.parseV(raw).map { segments =>
-      JsonPath(segments.value, raw)
+      JsonPath(segments.value)
     }
 }
