@@ -34,7 +34,7 @@ object Circe {
       def loop(f: () => Decoder[A]): AccumulatingResult[A] =
         f() match {
           case DeferredDecoder(f) => loop(f)
-          case next => next.decodeAccumulating(c)
+          case next               => next.decodeAccumulating(c)
         }
       loop(decoder)
     }
@@ -49,7 +49,7 @@ object Circe {
       def loop(f: () => Encoder[A]): Json =
         f() match {
           case DeferredEncoder(f) => loop(f)
-          case next => next(a)
+          case next               => next(a)
         }
 
       loop(encoder)
@@ -72,8 +72,8 @@ object Circe {
           tryDecodeAccumulating(c)
 
         override def tryDecodeAccumulating(c: ACursor): AccumulatingResult[A] =
-          lhs.tryDecodeAccumulating(c).recoverWith {
-            case lhsFailure => rhs.tryDecodeAccumulating(c).leftMap(lhsFailure.concatNel)
+          lhs.tryDecodeAccumulating(c).recoverWith { case lhsFailure =>
+            rhs.tryDecodeAccumulating(c).leftMap(lhsFailure.concatNel)
           }
       }
     }
@@ -90,7 +90,8 @@ object Circe {
 
   implicit val methodDecoder: Decoder[Method] = accumulatingDecoder { s =>
     s.asAcc[String].map(_.toUpperCase).andThen { raw =>
-      Method.fromString(raw)
+      Method
+        .fromString(raw)
         .leftMap(_ => DecodingFailure("Invalid method name", s.history))
         .toValidatedNel
     }
@@ -123,7 +124,7 @@ object Circe {
   }
   implicit val headerEncoder: Encoder[Header.Raw] = Encoder.instance { header =>
     Json.obj(
-      "name" := header.name.toString,
+      "name"  := header.name.toString,
       "value" := header.value
     )
   }

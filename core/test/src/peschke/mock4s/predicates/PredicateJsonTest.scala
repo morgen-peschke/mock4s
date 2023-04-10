@@ -20,7 +20,7 @@ class PredicateJsonTest extends FunSuite with MUnitCirce {
   }
 
   test("UsingEq.In") {
-    assertCodec(UsingEq.In(List(1,2,3)), Json.obj("in" := List(1,2,3)))
+    assertCodec(UsingEq.In(List(1, 2, 3)), Json.obj("in" := List(1, 2, 3)))
   }
 
   test("UsingOrder.LessThan") {
@@ -57,27 +57,35 @@ class PredicateJsonTest extends FunSuite with MUnitCirce {
 
   test("UsingCombinators.ForAll") {
     assertCodec[UsingCombinators[Int, UsingEq[Int]]](
-      UsingCombinators.ForAll[Int, UsingEq[Int]](List(
-        UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.In(List(1, 2, 3))),
-        UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.Is(7)),
-      )),
-      Json.obj("forall" := List(
-        Json.obj("in" := List(1, 2, 3)),
-        Json.obj("is" := 7),
-      ))
+      UsingCombinators.ForAll[Int, UsingEq[Int]](
+        List(
+          UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.In(List(1, 2, 3))),
+          UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.Is(7))
+        )
+      ),
+      Json.obj(
+        "forall" := List(
+          Json.obj("in" := List(1, 2, 3)),
+          Json.obj("is" := 7)
+        )
+      )
     )
   }
 
   test("UsingCombinators.Exists") {
     assertCodec[UsingCombinators[Int, UsingEq[Int]]](
-      UsingCombinators.Exists[Int, UsingEq[Int]](List(
-        UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.In(List(1, 2, 3))),
-        UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.Is(7)),
-      )),
-      Json.obj("exists" := List(
-        Json.obj("in" := List(1, 2, 3)),
-        Json.obj("is" := 7),
-      ))
+      UsingCombinators.Exists[Int, UsingEq[Int]](
+        List(
+          UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.In(List(1, 2, 3))),
+          UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.Is(7))
+        )
+      ),
+      Json.obj(
+        "exists" := List(
+          Json.obj("in" := List(1, 2, 3)),
+          Json.obj("is" := 7)
+        )
+      )
     )
   }
 
@@ -86,22 +94,28 @@ class PredicateJsonTest extends FunSuite with MUnitCirce {
   test("Predicate.SimpleEq") {
     import SimpleCharPred.{always, exists, forall, in, is, never, not}
     assertCodec(
-      exists(List(
-        is('a'),
-        in('a' :: 'b' :: 'c' :: Nil),
-        not(never),
-        forall(always :: not(never) :: is('a') :: Nil)
-      )),
-      Json.obj("exists" := Json.arr(
-        Json.obj("is" := 'a'),
-        Json.obj("in" := List('a', 'b', 'c')),
-        Json.obj("!" := "fail"),
-        Json.obj("forall" := Json.arr(
-          "any".asJson,
-          Json.obj("!" := "fail"),
-          Json.obj("is" := 'a'.asJson)
-        ))
-      ))
+      exists(
+        List(
+          is('a'),
+          in('a' :: 'b' :: 'c' :: Nil),
+          not(never),
+          forall(always :: not(never) :: is('a') :: Nil)
+        )
+      ),
+      Json.obj(
+        "exists" := Json.arr(
+          Json.obj("is" := 'a'),
+          Json.obj("in" := List('a', 'b', 'c')),
+          Json.obj("!"  := "fail"),
+          Json.obj(
+            "forall"    := Json.arr(
+              "any".asJson,
+              Json.obj("!"  := "fail"),
+              Json.obj("is" := 'a'.asJson)
+            )
+          )
+        )
+      )
     )
   }
 
@@ -110,30 +124,36 @@ class PredicateJsonTest extends FunSuite with MUnitCirce {
   test("Predicate.SimpleOrder") {
     import SimpleIntPred.{always, exists, forall, greaterThan, greaterThanEq, in, is, lessThan, lessThanEq, never, not}
     assertCodec(
-      exists(List(
-        is(1),
-        in(1 :: 2 :: 3 :: Nil),
-        lessThan(1),
-        lessThanEq(2),
-        greaterThan(4),
-        greaterThanEq(5),
-        not(never),
-        forall(always :: not(never) :: is(1) :: Nil)
-      )).asJson,
-      Json.obj("exists" := Json.arr(
-        Json.obj("is" := 1),
-        Json.obj("in" := List(1, 2, 3)),
-        Json.obj("<" := 1),
-        Json.obj("<=" := 2),
-        Json.obj(">" := 4),
-        Json.obj(">=" := 5),
-        Json.obj("!" := "fail"),
-        Json.obj("forall" := Json.arr(
-          "any".asJson,
-          Json.obj("!" := "fail"),
-          Json.obj("is" := 1.asJson)
-        ))
-      ))
+      exists(
+        List(
+          is(1),
+          in(1 :: 2 :: 3 :: Nil),
+          lessThan(1),
+          lessThanEq(2),
+          greaterThan(4),
+          greaterThanEq(5),
+          not(never),
+          forall(always :: not(never) :: is(1) :: Nil)
+        )
+      ).asJson,
+      Json.obj(
+        "exists" := Json.arr(
+          Json.obj("is" := 1),
+          Json.obj("in" := List(1, 2, 3)),
+          Json.obj("<"  := 1),
+          Json.obj("<=" := 2),
+          Json.obj(">"  := 4),
+          Json.obj(">=" := 5),
+          Json.obj("!"  := "fail"),
+          Json.obj(
+            "forall"    := Json.arr(
+              "any".asJson,
+              Json.obj("!"  := "fail"),
+              Json.obj("is" := 1.asJson)
+            )
+          )
+        )
+      )
     )
   }
 }

@@ -10,9 +10,9 @@ import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators, UsingEq}
 import peschke.mock4s.utils.Circe._
 
 sealed trait RoutePredicate extends Predicate[Route]
-object RoutePredicate extends PredicateWrapper[Route] {
+object RoutePredicate       extends PredicateWrapper[Route] {
   object MethodPredicate extends Predicate.SimpleEq[Method]
-  object QueryPredicate extends Predicate.SimpleEq[Query]
+  object QueryPredicate  extends Predicate.SimpleEq[Query]
 
   final case class WhenMethod(predicate: MethodPredicate.Type) extends RoutePredicate {
     override def test(a: Route): Boolean = predicate.test(a.method)
@@ -34,15 +34,15 @@ object RoutePredicate extends PredicateWrapper[Route] {
 
   implicit val routePredicateEncoder: Encoder[RoutePredicate] = Encoder.instance {
     case WhenMethod(predicate) => Json.obj("method" := predicate)
-    case WhenPath(predicate) => Json.obj("path" := predicate)
-    case WhenQuery(predicate) => Json.obj("query" := predicate)
+    case WhenPath(predicate)   => Json.obj("path" := predicate)
+    case WhenQuery(predicate)  => Json.obj("query" := predicate)
   }
 
   implicit val routePredicateEq: Eq[RoutePredicate] = Eq.instance {
     case (WhenMethod(a), WhenMethod(b)) => a === b
-    case (WhenPath(a), WhenPath(b)) => a === b
-    case (WhenQuery(a), WhenQuery(b)) => a === b
-    case _ => false
+    case (WhenPath(a), WhenPath(b))     => a === b
+    case (WhenQuery(a), WhenQuery(b))   => a === b
+    case _                              => false
   }
 
   override type Base = Fixed[Route] |+| UsingEq[Route] |+| RoutePredicate

@@ -4,7 +4,7 @@ import io.circe.{Decoder, Encoder, Json}
 import io.circe.syntax._
 import peschke.mock4s.utils.Circe._
 
-final case class Settings (mocks: List[MockDefinition])
+final case class Settings(mocks: List[MockDefinition])
 object Settings {
   implicit val decoder: Decoder[Settings] = accumulatingDecoder { c =>
     c.downField("mocks").asAcc[List[MockDefinition]].map(Settings.apply)

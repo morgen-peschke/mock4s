@@ -9,7 +9,7 @@ import peschke.mock4s.algebras.Parser.{ParseError, ParserName, State}
 import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
 
-trait Parser[Output]{ self =>
+trait Parser[Output] { self =>
   def name: ParserName
 
   final def parseE(input: String): ParseError.OrRight[Output] =
@@ -53,7 +53,7 @@ trait Parser[Output]{ self =>
       @tailrec
       def loop(state: State, accum: Chain[Output]): Parser.Result[Chain[Output]] =
         self.parseE(state.usingHistory(input)) match {
-          case Left(_) => Parser.Result(accum, state)
+          case Left(_)                               => Parser.Result(accum, state)
           case Right(Parser.Result(value, newState)) => loop(newState, accum.append(value))
         }
 
@@ -61,29 +61,29 @@ trait Parser[Output]{ self =>
     }
 
   def repeatedNec: Parser[NonEmptyChain[Output]] =
-    (self ~> self.repeated).map {
-      case (first, rest) => NonEmptyChain.fromChainPrepend(first, rest)
+    (self ~> self.repeated).map { case (first, rest) =>
+      NonEmptyChain.fromChainPrepend(first, rest)
     }
 
   def ~>[O2](next: Parser[O2]): Parser[(Output, O2)] =
     Parser.namedInstance(show"$name ~> ${next.name}") { input =>
       for {
-        first <- self.parseE(input)
+        first  <- self.parseE(input)
         second <- next.parseE(first.state)
       } yield Parser.Result(first.value -> second.value, second.state)
     }
 
   def ~+:>[O2 <: Output](next: Parser[Chain[Output]]): Parser[NonEmptyChain[Output]] =
     (self ~> next)
-      .map {
-        case (single, chain) => NonEmptyChain.fromChainPrepend(single, chain)
+      .map { case (single, chain) =>
+        NonEmptyChain.fromChainPrepend(single, chain)
       }
       .withName(s"$name ~+:> ${next.name}")
 
   def *>[O2](next: Parser[O2]): Parser[O2] =
     Parser.namedInstance(show"$name *> ${next.name}") { input =>
       for {
-        first <- self.parseE(input)
+        first  <- self.parseE(input)
         second <- next.parseE(first.state)
       } yield Parser.Result(second.value, second.state)
     }
@@ -91,16 +91,16 @@ trait Parser[Output]{ self =>
   def <*[O2](next: Parser[O2]): Parser[Output] =
     Parser.namedInstance(show"$name <* ${next.name}") { input =>
       for {
-        first <- self.parseE(input)
+        first  <- self.parseE(input)
         second <- next.parseE(first.state)
       } yield Parser.Result(first.value, second.state)
     }
 }
-object Parser {
+object Parser        {
   final case class State(value: Chain[Char], index: Int, history: Chain[History]) {
     def uncons: Option[(Char, State)] =
-      value.uncons.map {
-        case (char, rest) => char -> State(rest, index + 1, history)
+      value.uncons.map { case (char, rest) =>
+        char -> State(rest, index + 1, history)
       }
 
     def isEmpty: Boolean = value.isEmpty
@@ -117,7 +117,7 @@ object Parser {
       s"State($valueStr, $index, $historyStr)"
     }
   }
-  object State {
+  object State                                                                    {
     final case class History(index: Int, parser: ParserName, input: Chain[Char]) {
       def truncatedInput(length: Int): String =
         if (input.length <= length) input.mkString_("")
@@ -135,7 +135,7 @@ object Parser {
   final case class Result[Output](value: Output, state: State) {
     def map[O](f: Output => O): Result[O] = Result[O](f(value), state)
   }
-  object Result {
+  object Result                                                {
     def valid[Output](value: Output, state: State): ParseError.OrValid[Output] =
       Result(value, state).valid
 
@@ -161,7 +161,7 @@ object Parser {
   final case class ParseError(message: ErrorMessage, state: State) {
     override def toString: String = show"ParseError($message, $state)"
   }
-  object ParseError {
+  object ParseError                                                {
     type OrRight[Output] = Either[NonEmptyChain[ParseError], Result[Output]]
     type OrValid[Output] = Validated[NonEmptyChain[ParseError], Result[Output]]
 
@@ -169,19 +169,22 @@ object Parser {
       NonEmptyChain.one(ParseError(ErrorMessage(message), state))
 
     def of(state: State)(firstMessage: String, secondMessage: String, messages: String*): NonEmptyChain[ParseError] =
-      NonEmptyChain.fromChainPrepend(firstMessage, Chain.fromSeq(messages).prepend(secondMessage))
+      NonEmptyChain
+        .fromChainPrepend(firstMessage, Chain.fromSeq(messages).prepend(secondMessage))
         .map(m => ParseError(ErrorMessage(m), state))
 
-    implicit def show: Show[ParseError] = Show.show {
-      case ParseError(message, State(_, index, history)) =>
-        val maxIndexWidth = (history.map(_.index).maximumOption.getOrElse(0) % 10).abs.max(1)
-        val maxParserNameWidth = history.map(h => ParserName.raw(h.parser).length).maximumOption.getOrElse(0).max(1)
-        val historyStr = history.map { h =>
+    implicit def show: Show[ParseError] = Show.show { case ParseError(message, State(_, index, history)) =>
+      val maxIndexWidth = (history.map(_.index).maximumOption.getOrElse(0) % 10).abs.max(1)
+      val maxParserNameWidth = history.map(h => ParserName.raw(h.parser).length).maximumOption.getOrElse(0).max(1)
+      val historyStr = history
+        .map { h =>
           s"%${maxIndexWidth}d :: %-${maxParserNameWidth}s << %s".format(
-            h.index, h.parser, h.truncatedInput(20)
+            h.index,
+            h.parser,
+            h.truncatedInput(20)
           )
         }.mkString_("\n", "\n", "\n")
-        show"Parse error at index $index, $message:$historyStr"
+      show"Parse error at index $index, $message:$historyStr"
     }
   }
 
@@ -222,15 +225,16 @@ object Parser {
     Parser.namedAccumulating(s"fixed($sentinel)") { input =>
       input.uncons match {
         case Some(head -> state) if head === sentinel => Result(head, state).valid
-        case Some(head -> _) =>
+        case Some(head -> _)                          =>
           ParseError.one(show"expected <$sentinel>, but was <$head>", input).invalid
-        case None =>
+        case None                                     =>
           ParseError.one(show"expected <$sentinel>, but ran out of input", input).invalid
       }
     }
 
   def fixed(sentinel: String): Parser[String] =
-    sentinel.toVector.map(fixed)
+    sentinel
+      .toVector.map(fixed)
       .reduceLeftOption(_ *> _)
       .getOrElse(noOp)
       .as(sentinel)
@@ -248,10 +252,11 @@ object Parser {
 
   implicit final class ChainParserOps[Output](private val parser: Parser[Chain[Output]]) extends AnyVal {
     def ~:+>[O2 <: Output](next: Parser[O2]): Parser[NonEmptyChain[Output]] = {
-      (parser ~> next).map {
-        case (chain, single) => NonEmptyChain.fromChainAppend(chain, single)
-      }
-      .withName(s"${parser.name} ~:+> ${next.name}")
+      (parser ~> next)
+        .map { case (chain, single) =>
+          NonEmptyChain.fromChainAppend(chain, single)
+        }
+        .withName(s"${parser.name} ~:+> ${next.name}")
     }
   }
 
@@ -261,9 +266,9 @@ object Parser {
         @tailrec
         def loop(state: State, accum: Chain[Output]): Parser.Result[Chain[Output]] =
           parser.parseE(state) match {
-            case Left(_) => Parser.Result(accum, state)
+            case Left(_)                                     => Parser.Result(accum, state)
             case Right(Parser.Result(Some(value), newState)) => loop(newState, accum.append(value))
-            case Right(Parser.Result(None, _)) => Parser.Result(accum, state)
+            case Right(Parser.Result(None, _))               => Parser.Result(accum, state)
           }
 
         loop(input, Chain.empty).asRight
@@ -274,15 +279,15 @@ object Parser {
         @tailrec
         def loop(state: State, accum: NonEmptyChain[Output]): Parser.Result[NonEmptyChain[Output]] =
           parser.parseE(state) match {
-            case Left(_) => Parser.Result(accum, state)
+            case Left(_)                                     => Parser.Result(accum, state)
             case Right(Parser.Result(Some(value), newState)) => loop(newState, accum.append(value))
-            case Right(Parser.Result(None, _)) => Parser.Result(accum, state)
+            case Right(Parser.Result(None, _))               => Parser.Result(accum, state)
           }
 
         parser.parseE(input).flatMap { result =>
           result.value match {
             case Some(value) => loop(result.state, NonEmptyChain.one(value)).asRight
-            case None => ParseError.one("unexpected end of input", input).asLeft
+            case None        => ParseError.one("unexpected end of input", input).asLeft
           }
         }
       }
@@ -298,10 +303,10 @@ object Parser {
         @tailrec
         def loop(current: A): ParseError.OrRight[B] =
           f(current).parseE(input) match {
-            case Left(errors) => errors.asLeft
-            case Right(Result(Right(b), s)) => Result(b, s).asRight
+            case Left(errors)                  => errors.asLeft
+            case Right(Result(Right(b), s))    => Result(b, s).asRight
             case Right(Result(Left(nextA), _)) => loop(nextA)
-        }
+          }
         loop(a)
       }
 

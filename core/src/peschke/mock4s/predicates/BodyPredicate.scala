@@ -9,11 +9,11 @@ import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators}
 import peschke.mock4s.utils.Circe._
 
 sealed trait BodyPredicate extends Predicate[ParsedBody]
-object BodyPredicate extends PredicateWrapper[ParsedBody] {
+object BodyPredicate       extends PredicateWrapper[ParsedBody] {
   case object IsEmpty extends BodyPredicate {
     override def test(a: ParsedBody): Boolean = a match {
       case ParsedBody.EmptyBody => true
-      case _ => false
+      case _                    => false
     }
   }
 
@@ -21,14 +21,14 @@ object BodyPredicate extends PredicateWrapper[ParsedBody] {
     override def test(a: ParsedBody): Boolean = a match {
       case ParsedBody.TextBody(text, _, _) => p.test(text)
       case ParsedBody.JsonBody(_, text, _) => p.test(text)
-      case _ => false
+      case _                               => false
     }
   }
 
   final case class JsonBodyPredicate(p: JsonPredicate.Type) extends BodyPredicate {
     override def test(a: ParsedBody): Boolean = a match {
       case ParsedBody.JsonBody(json, _, _) => p.test(json)
-      case _ => false
+      case _                               => false
     }
   }
 
@@ -36,8 +36,8 @@ object BodyPredicate extends PredicateWrapper[ParsedBody] {
     override def test(a: ParsedBody): Boolean = a match {
       case ParsedBody.JsonBody(_, _, bytes) => p.test(bytes)
       case ParsedBody.TextBody(_, bytes, _) => p.test(bytes)
-      case ParsedBody.RawBody(bytes, _) => p.test(bytes)
-      case _ => false
+      case ParsedBody.RawBody(bytes, _)     => p.test(bytes)
+      case _                                => false
     }
   }
 
@@ -49,18 +49,18 @@ object BodyPredicate extends PredicateWrapper[ParsedBody] {
   )
 
   implicit val bodyPredicateEncoder: Encoder[BodyPredicate] = Encoder.instance {
-    case IsEmpty => "empty".asJson
+    case IsEmpty              => "empty".asJson
     case TextBodyPredicate(p) => Json.obj("text" := p)
     case JsonBodyPredicate(p) => Json.obj("json" := p)
-    case RawBodyPredicate(p) => Json.obj("raw" := p)
+    case RawBodyPredicate(p)  => Json.obj("raw" := p)
   }
 
   implicit val bodyPredicateEq: Eq[BodyPredicate] = Eq.instance {
-    case (IsEmpty, IsEmpty) => true
+    case (IsEmpty, IsEmpty)                           => true
     case (TextBodyPredicate(a), TextBodyPredicate(b)) => a === b
     case (JsonBodyPredicate(a), JsonBodyPredicate(b)) => a === b
-    case (RawBodyPredicate(a), RawBodyPredicate(b)) => a === b
-    case _ => false
+    case (RawBodyPredicate(a), RawBodyPredicate(b))   => a === b
+    case _                                            => false
   }
 
   override type Base = Fixed[ParsedBody] |+| BodyPredicate

@@ -6,11 +6,7 @@ import io.circe.syntax._
 import org.http4s.{Header, HttpVersion, Status}
 import peschke.mock4s.utils.Circe._
 
-final case class ResponseDef(
-                              status: Status,
-                              httpVersion: HttpVersion,
-                              headers: List[Header.Raw],
-                              body: Body)
+final case class ResponseDef(status: Status, httpVersion: HttpVersion, headers: List[Header.Raw], body: Body)
 object ResponseDef {
 
   val NotFound: ResponseDef = ResponseDef(
@@ -30,10 +26,10 @@ object ResponseDef {
   }
   implicit val encoder: Encoder[ResponseDef] = Encoder.instance { responseDef =>
     Json.obj(
-      "status" := responseDef.status,
+      "status"      := responseDef.status,
       "httpVersion" := responseDef.httpVersion,
-      "headers" := responseDef.headers,
-      "body" := responseDef.body
+      "headers"     := responseDef.headers,
+      "body"        := responseDef.body
     )
   }
 }

@@ -6,7 +6,7 @@ import munit._
 import peschke.mock4s.MUnitCirce
 
 class StringPredicateJsonTest extends FunSuite with MUnitCirce {
-  import StringPredicate.{startsWith, endsWith, contains, matches}
+  import StringPredicate.{contains, endsWith, matches, startsWith}
 
   test("StartsWith") {
     assertCodec(

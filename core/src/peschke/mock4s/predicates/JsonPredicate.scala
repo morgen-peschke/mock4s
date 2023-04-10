@@ -14,13 +14,13 @@ import peschke.mock4s.utils.Orphans._
 import scala.annotation.nowarn
 
 object JsonPredicate extends PredicateWrapper[Json] {
-  final case class WithPath(pathOpt: Option[JsonPath],
-                            when: Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json]) extends Predicate[Json] {
+  final case class WithPath(pathOpt: Option[JsonPath], when: Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json])
+      extends Predicate[Json] {
     override def test(a: Json): Boolean =
       pathOpt.fold(when.test(a)) { path =>
         val expectingArray = path.segments.exists {
           case Segment.DownArray => true
-          case _ => false
+          case _                 => false
         }
         val pathResultsOpt: Option[Either[NonEmptyChain[Json], Json]] =
           NonEmptyChain
@@ -37,10 +37,11 @@ object JsonPredicate extends PredicateWrapper[Json] {
 
         // Special case: never accepts JSON that has nothing at the path
         if (when === WhenNever) pathResultsOpt.isEmpty
-        else pathResultsOpt.exists {
-          case Right(json) => when.test(json)
-          case Left(jsonNec) => jsonNec.exists(when.test)
-        }
+        else
+          pathResultsOpt.exists {
+            case Right(json)   => when.test(json)
+            case Left(jsonNec) => jsonNec.exists(when.test)
+          }
       }
   }
 
@@ -57,9 +58,10 @@ object JsonPredicate extends PredicateWrapper[Json] {
       val bigDecPA = PartialOrder[BigDecimal]
       val stringPA = PartialOrder[String]
       val vectorPA = cats.instances.vector.catsKernelStdPartialOrderForVector(recurse)
-      val fieldsPA = cats.instances.vector.catsKernelStdPartialOrderForVector(
-        cats.instances.tuple.catsKernelStdPartialOrderForTuple2(stringPA, recurse)
-      )
+      val fieldsPA = cats
+        .instances.vector.catsKernelStdPartialOrderForVector(
+          cats.instances.tuple.catsKernelStdPartialOrderForTuple2(stringPA, recurse)
+        )
       val objectPA = PartialOrder.from[JsonObject] { (a, b) =>
         fieldsPA.partialCompare(a.toVector.sortBy(_._1), b.toVector.sortBy(_._1))
       }
@@ -77,49 +79,55 @@ object JsonPredicate extends PredicateWrapper[Json] {
             jsonArray = notComparable(_),
             jsonObject = notComparable(_)
           ),
-          jsonBoolean = a => rhs.fold(
-            jsonNull = Double.NaN,
-            jsonBoolean = b => booleanPA.partialCompare(a, b),
-            jsonNumber = notComparable(_),
-            jsonString = notComparable(_),
-            jsonArray = notComparable(_),
-            jsonObject = notComparable(_)
-          ),
-          jsonNumber = a => rhs.fold(
-            jsonNull = Double.NaN,
-            jsonBoolean = notComparable(_),
-            jsonNumber = b => bigDecPA.partialCompare(
-              a.toBigDecimal.getOrElse(BigDecimal.valueOf(a.toDouble)),
-              b.toBigDecimal.getOrElse(BigDecimal.valueOf(b.toDouble))
+          jsonBoolean = a =>
+            rhs.fold(
+              jsonNull = Double.NaN,
+              jsonBoolean = b => booleanPA.partialCompare(a, b),
+              jsonNumber = notComparable(_),
+              jsonString = notComparable(_),
+              jsonArray = notComparable(_),
+              jsonObject = notComparable(_)
             ),
-            jsonString = notComparable(_),
-            jsonArray = notComparable(_),
-            jsonObject = notComparable(_)
-          ),
-          jsonString = a => rhs.fold(
-            jsonNull = Double.NaN,
-            jsonBoolean = notComparable(_),
-            jsonNumber = notComparable(_),
-            jsonString = b => stringPA.partialCompare(a,b),
-            jsonArray = notComparable(_),
-            jsonObject = notComparable(_)
-          ),
-          jsonArray = a => rhs.fold(
-            jsonNull = Double.NaN,
-            jsonBoolean = notComparable(_),
-            jsonNumber = notComparable(_),
-            jsonString = notComparable(_),
-            jsonArray = b => vectorPA.partialCompare(a,b),
-            jsonObject = notComparable(_)
-          ),
-          jsonObject = a => rhs.fold(
+          jsonNumber = a =>
+            rhs.fold(
+              jsonNull = Double.NaN,
+              jsonBoolean = notComparable(_),
+              jsonNumber = b =>
+                bigDecPA.partialCompare(
+                  a.toBigDecimal.getOrElse(BigDecimal.valueOf(a.toDouble)),
+                  b.toBigDecimal.getOrElse(BigDecimal.valueOf(b.toDouble))
+                ),
+              jsonString = notComparable(_),
+              jsonArray = notComparable(_),
+              jsonObject = notComparable(_)
+            ),
+          jsonString = a =>
+            rhs.fold(
+              jsonNull = Double.NaN,
+              jsonBoolean = notComparable(_),
+              jsonNumber = notComparable(_),
+              jsonString = b => stringPA.partialCompare(a, b),
+              jsonArray = notComparable(_),
+              jsonObject = notComparable(_)
+            ),
+          jsonArray = a =>
+            rhs.fold(
+              jsonNull = Double.NaN,
+              jsonBoolean = notComparable(_),
+              jsonNumber = notComparable(_),
+              jsonString = notComparable(_),
+              jsonArray = b => vectorPA.partialCompare(a, b),
+              jsonObject = notComparable(_)
+            ),
+          jsonObject = a =>
+            rhs.fold(
               jsonNull = Double.NaN,
               jsonBoolean = notComparable(_),
               jsonNumber = notComparable(_),
               jsonString = notComparable(_),
               jsonArray = notComparable(_),
               jsonObject = b => objectPA.partialCompare(a, b)
-          )
+            )
         )
       }
     }
@@ -143,7 +151,7 @@ object JsonPredicate extends PredicateWrapper[Json] {
     }
   }
 
-  implicit val baseEq: Eq[WithPath] = Eq.instance { (a,b) =>
+  implicit val baseEq: Eq[WithPath] = Eq.instance { (a, b) =>
     a.pathOpt === b.pathOpt
   }
 
@@ -170,80 +178,96 @@ object JsonPredicate extends PredicateWrapper[Json] {
     lhs[Base, UsingCombinators[Json, Base]](
       WithPath(
         none[JsonPath],
-        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-          lhs[Fixed[Json], UsingEq[Json]](Fixed.Never[Json]()))
+        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](lhs[Fixed[Json], UsingEq[Json]](Fixed.Never[Json]()))
       )
     )
   }
   def never(path: JsonPath): Type = wrap {
     lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(path.some, lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-        lhs[Fixed[Json], UsingEq[Json]](Fixed.Never[Json]()))
+      WithPath(
+        path.some,
+        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](lhs[Fixed[Json], UsingEq[Json]](Fixed.Never[Json]()))
       )
     )
   }
 
   def is(sentinel: Json): Type = wrap {
     lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(none[JsonPath], lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-        rhs[Fixed[Json], UsingEq[Json]](UsingEq.Is[Json](sentinel)))
+      WithPath(
+        none[JsonPath],
+        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](rhs[Fixed[Json], UsingEq[Json]](UsingEq.Is[Json](sentinel)))
       )
     )
   }
 
   def is(path: JsonPath, sentinel: Json): Type = wrap {
     lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(path.some, lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-        rhs[Fixed[Json], UsingEq[Json]](UsingEq.Is[Json](sentinel)))
+      WithPath(
+        path.some,
+        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](rhs[Fixed[Json], UsingEq[Json]](UsingEq.Is[Json](sentinel)))
       )
     )
   }
 
   def in(sentinels: List[Json]): Type = wrap {
     lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(none[JsonPath], lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-        rhs[Fixed[Json], UsingEq[Json]](UsingEq.In[Json](sentinels)))
+      WithPath(
+        none[JsonPath],
+        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](rhs[Fixed[Json], UsingEq[Json]](UsingEq.In[Json](sentinels)))
       )
     )
   }
 
   def in(path: JsonPath, sentinels: List[Json]): Type = wrap {
     lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(path.some, lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-        rhs[Fixed[Json], UsingEq[Json]](UsingEq.In[Json](sentinels)))
+      WithPath(
+        path.some,
+        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](rhs[Fixed[Json], UsingEq[Json]](UsingEq.In[Json](sentinels)))
       )
     )
   }
 
   def lessThan(sentinel: Json): Type = wrap {
     lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(none[JsonPath], rhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-        UsingOrder.LessThan[Json](sentinel)
-      ))
+      WithPath(
+        none[JsonPath],
+        rhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
+          UsingOrder.LessThan[Json](sentinel)
+        )
+      )
     )
   }
 
   def lessThanEq(sentinel: Json): Type = wrap {
     lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(none[JsonPath], rhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-        UsingOrder.LessThanEq[Json](sentinel)
+      WithPath(
+        none[JsonPath],
+        rhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
+          UsingOrder.LessThanEq[Json](sentinel)
+        )
       )
-    ))
+    )
   }
 
   def greaterThan(sentinel: Json): Type = wrap {
     lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(none[JsonPath], rhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-        UsingOrder.GreaterThan[Json](sentinel)
+      WithPath(
+        none[JsonPath],
+        rhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
+          UsingOrder.GreaterThan[Json](sentinel)
+        )
       )
-    ))
+    )
   }
 
   def greaterThanEq(sentinel: Json): Type = wrap {
     lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(none[JsonPath], rhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-        UsingOrder.GreaterThanEq[Json](sentinel)
+      WithPath(
+        none[JsonPath],
+        rhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
+          UsingOrder.GreaterThanEq[Json](sentinel)
+        )
       )
-    ))
+    )
   }
 }

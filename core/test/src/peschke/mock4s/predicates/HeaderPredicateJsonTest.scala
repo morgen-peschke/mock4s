@@ -11,7 +11,7 @@ class HeaderPredicateJsonTest extends FunSuite with MUnitCirce {
     assertCodec(
       HeaderPredicate.header(ci"some-header", StringPredicate.is("some-value")),
       Json.obj(
-        "name" := "some-header",
+        "name"  := "some-header",
         "value" := Json.obj("is" := "some-value")
       )
     )

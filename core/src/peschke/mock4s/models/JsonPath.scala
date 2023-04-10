@@ -28,9 +28,9 @@ final case class JsonPath(segments: Chain[JsonPath.Segment]) {
       }
   }
 
-  def / (index: Int): JsonPath = JsonPath(segments.append(Segment.of(index)))
-  def / (field: String): JsonPath = JsonPath(segments.append(Segment.of(field)))
-  def / (da: DownArray.type): JsonPath = JsonPath(segments.append(da))
+  def /(index: Int): JsonPath = JsonPath(segments.append(Segment.of(index)))
+  def /(field: String): JsonPath = JsonPath(segments.append(Segment.of(field)))
+  def /(da: DownArray.type): JsonPath = JsonPath(segments.append(da))
 
   def render: String =
     segments
@@ -40,7 +40,7 @@ final case class JsonPath(segments: Chain[JsonPath.Segment]) {
           (last, curr) match {
             case (_, BareField(_)) =>
               b.append('.').append(curr.show) -> curr.some
-            case _                         => b.append(curr.show) -> curr.some
+            case _                 => b.append(curr.show) -> curr.some
           }
       }
       ._1
@@ -50,14 +50,14 @@ final case class JsonPath(segments: Chain[JsonPath.Segment]) {
   def aCursors(json: Json): Chain[ACursor] =
     segments.foldLeft(Chain.one[ACursor](json.hcursor)) { (clist, segment) =>
       segment match {
-        case BareField(name) => clist.map(_.downField(name))
+        case BareField(name)   => clist.map(_.downField(name))
         case QuotedField(name) => clist.map(_.downField(name))
-        case AtIndex(value) => clist.map(_.downN(value))
+        case AtIndex(value)    => clist.map(_.downN(value))
         case Segment.DownArray =>
           clist.flatMap { c =>
             @tailrec
             def loop(c0: ACursor, accum: Chain[ACursor]): Chain[ACursor] =
-              if(c0.failed) accum
+              if (c0.failed) accum
               else loop(c0.right, accum.append(c0))
 
             loop(c.downArray, Chain.empty)
@@ -68,13 +68,13 @@ final case class JsonPath(segments: Chain[JsonPath.Segment]) {
 object JsonPath                                              {
   sealed trait Segment {
     def <<:(targets: Chain[Json]): Chain[Json] = this match {
-      case QuotedField(name) =>
+      case QuotedField(name)      =>
         targets.flatMap(j => Chain.fromOption(j.hcursor.downField(name).focus))
-      case BareField(name)   =>
+      case BareField(name)        =>
         targets.flatMap(j => Chain.fromOption(j.hcursor.downField(name).focus))
-      case Segment.AtIndex(value)    =>
+      case Segment.AtIndex(value) =>
         targets.flatMap(j => Chain.fromOption(j.hcursor.downN(value).focus))
-      case DownArray                 =>
+      case DownArray              =>
         targets.flatMap(_.asArray.fold(Chain.empty[Json])(Chain.fromSeq))
     }
   }
@@ -207,7 +207,7 @@ object JsonPath                                              {
     paths(json)
       .map(_.segments.map {
         case unchanged @ (BareField(_) | QuotedField(_) | DownArray) => unchanged
-        case AtIndex(_) => DownArray
+        case AtIndex(_)                                              => DownArray
       })
       .map(JsonPath.fromChain)
       .distinct

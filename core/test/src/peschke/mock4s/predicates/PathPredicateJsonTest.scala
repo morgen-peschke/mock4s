@@ -11,44 +11,52 @@ import org.http4s.Uri.Path.Segment
 class PathPredicateJsonTest extends FunSuite with MUnitCirce {
   test("Sanitized relative, no trailing '/'") {
     assertCodec(
-      PathPredicate.sanitized(Sanitized(
-        tokens = Literal(Segment("foo")) :: Literal(Segment("bar")) :: Wildcard :: Nil,
-        absolute = false,
-        endsWithSlash = false
-      )),
-      Json.obj("sanitized" := "foo/bar/*" )
+      PathPredicate.sanitized(
+        Sanitized(
+          tokens = Literal(Segment("foo")) :: Literal(Segment("bar")) :: Wildcard :: Nil,
+          absolute = false,
+          endsWithSlash = false
+        )
+      ),
+      Json.obj("sanitized" := "foo/bar/*")
     )
   }
 
   test("Sanitized relative, with trailing '/'") {
     assertCodec(
-      PathPredicate.sanitized(Sanitized(
-        tokens = Literal(Segment("foo")) :: Literal(Segment("bar")) :: Wildcard :: Nil,
-        absolute = false,
-        endsWithSlash = true
-      )),
+      PathPredicate.sanitized(
+        Sanitized(
+          tokens = Literal(Segment("foo")) :: Literal(Segment("bar")) :: Wildcard :: Nil,
+          absolute = false,
+          endsWithSlash = true
+        )
+      ),
       Json.obj("sanitized" := "foo/bar/*/")
     )
   }
 
   test("Sanitized absolute, no trailing '/'") {
     assertCodec(
-      PathPredicate.sanitized(Sanitized(
-        tokens = Literal(Segment("foo")) :: Literal(Segment("bar")) :: Wildcard :: Nil,
-        absolute = true,
-        endsWithSlash = false
-      )),
+      PathPredicate.sanitized(
+        Sanitized(
+          tokens = Literal(Segment("foo")) :: Literal(Segment("bar")) :: Wildcard :: Nil,
+          absolute = true,
+          endsWithSlash = false
+        )
+      ),
       Json.obj("sanitized" := "/foo/bar/*")
     )
   }
 
   test("Sanitized absolute, with trailing '/'") {
     assertCodec(
-      PathPredicate.sanitized(Sanitized(
-        tokens = Literal(Segment("foo")) :: Literal(Segment("bar")) :: Wildcard :: Nil,
-        absolute = true,
-        endsWithSlash = true
-      )),
+      PathPredicate.sanitized(
+        Sanitized(
+          tokens = Literal(Segment("foo")) :: Literal(Segment("bar")) :: Wildcard :: Nil,
+          absolute = true,
+          endsWithSlash = true
+        )
+      ),
       Json.obj("sanitized" := "/foo/bar/*/")
     )
   }

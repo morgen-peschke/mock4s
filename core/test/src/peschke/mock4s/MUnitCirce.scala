@@ -13,16 +13,22 @@ import scala.annotation.nowarn
 
 trait MUnitCirce { self: Assertions =>
 
-  private def munitComparisonHandler(
-                                      actualObtained: Any,
-                                      actualExpected: Any
-                                    ): ComparisonFailExceptionHandler =
-    (message: String, _: String, _: String, loc: Location) => failComparison(message, actualObtained, actualExpected)(loc)
+  private def munitComparisonHandler
+    (
+        actualObtained: Any,
+        actualExpected: Any
+    )
+    : ComparisonFailExceptionHandler =
+    (message: String, _: String, _: String, loc: Location) =>
+      failComparison(message, actualObtained, actualExpected)(loc)
 
-  def assertDecodes[A: Eq : Decoder](json: Json, expected: A, clue: Any = "decoded values are not the same")(implicit location: Location): Unit =
+  def assertDecodes[A: Eq: Decoder]
+    (json:              Json, expected: A, clue: Any = "decoded values are not the same")
+    (implicit location: Location)
+    : Unit =
     StackTraces.dropInside {
       json.hcursor.asAcc[A] match {
-        case Validated.Invalid(e) =>
+        case Validated.Invalid(e)      =>
           fail(e.mkString_(s"Json did not decode successfully:\n  ", "\n  ", "\n"))(location)
         case Validated.Valid(obtained) =>
           if (expected =!= obtained) {
@@ -52,7 +58,10 @@ trait MUnitCirce { self: Assertions =>
 
   // Macro shenanigans means the compiler thinks `location` isn't used
   @nowarn("cat=unused")
-  def assertEncodes[A: Eq : Encoder](value: A, expected: Json, clue: Any = "encoded json are not the same")(implicit location: Location): Unit =
+  def assertEncodes[A: Eq: Encoder]
+    (value:             A, expected: Json, clue: Any = "encoded json are not the same")
+    (implicit location: Location)
+    : Unit =
     StackTraces.dropInside {
       val obtained = Encoder[A].apply(value)
       if (expected =!= obtained) {
@@ -87,7 +96,7 @@ trait MUnitCirce { self: Assertions =>
       }
     }
 
-  def assertCodec[A: Eq : Decoder : Encoder](value: A, json: Json)(implicit location: Location): Unit = {
+  def assertCodec[A: Eq: Decoder: Encoder](value: A, json: Json)(implicit location: Location): Unit = {
     assertEncodes(value, json)(Eq[A], Encoder[A], location)
     assertDecodes(json, value)(Eq[A], Decoder[A], location)
   }

@@ -9,9 +9,9 @@ import peschke.mock4s.utils.Circe._
 
 sealed abstract class Body
 object Body {
-  final case object Empty extends Body
-  final case class TextBody(text: String) extends Body
-  final case class JsonBody(json: Json) extends Body
+  final case object Empty                      extends Body
+  final case class TextBody(text: String)      extends Body
+  final case class JsonBody(json: Json)        extends Body
   final case class Bytes(hexString: HexString) extends Body
 
   object HexString extends supertagged.NewType[BigInt] {
@@ -41,9 +41,9 @@ object Body {
   )
 
   implicit val encoder: Encoder[Body] = Encoder.instance {
-    case Empty => Json.fromString("empty")
-    case TextBody(value) => Json.obj("text" := value)
-    case JsonBody(value) => Json.obj("json" -> value)
+    case Empty            => Json.fromString("empty")
+    case TextBody(value)  => Json.obj("text" := value)
+    case JsonBody(value)  => Json.obj("json" -> value)
     case Bytes(hexString) => Json.obj("bytes" := hexString)
   }
 }

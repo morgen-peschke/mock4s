@@ -10,7 +10,7 @@ import org.typelevel.log4cats.LoggerFactory
 import peschke.mock4s.algebras.{BodyParser, RequestMatcher, RequestParser, ResponseRenderer}
 
 object SetupServer {
-  def setup[F[_]: Async : Network : LoggerFactory](config: Config): Resource[F, Server] = {
+  def setup[F[_]: Async: Network: LoggerFactory](config: Config): Resource[F, Server] = {
     implicit val bodyParser: BodyParser[F] = BodyParser.default[F]
     implicit val requestParser: RequestParser[F] = RequestParser.default[F]
     implicit val renderer: ResponseRenderer[F] = ResponseRenderer.default[F]
@@ -24,13 +24,13 @@ object SetupServer {
     })
 
     Resource.eval(LoggerFactory[F].fromClass(classOf[Server])).flatMap { serverLogger =>
-        EmberServerBuilder
-          .default[F]
-          .withHost(config.host)
-          .withPort(config.port)
-          .withLogger(serverLogger)
-          .withHttpApp(app)
-          .build
+      EmberServerBuilder
+        .default[F]
+        .withHost(config.host)
+        .withPort(config.port)
+        .withLogger(serverLogger)
+        .withHttpApp(app)
+        .build
     }
   }
 }

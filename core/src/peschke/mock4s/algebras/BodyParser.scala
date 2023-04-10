@@ -9,7 +9,7 @@ import peschke.mock4s.models.ParsedBody
 trait BodyParser[F[_]] {
   def parse(request: Request[F]): F[ParsedBody]
 }
-object BodyParser {
+object BodyParser      {
   def apply[F[_]](implicit BP: BodyParser[F]): BP.type = BP
 
   def default[F[_]: Concurrent]: BodyParser[F] = new BodyParser[F] {
@@ -26,7 +26,8 @@ object BodyParser {
     def decodeText(bytes: Vector[Byte]): F[Either[ParsedBody, (String, HexString)]] =
       if (bytes.isEmpty) ParsedBody.EmptyBody.asLeft.pure[F].widen
       else
-        fs2.Stream
+        fs2
+          .Stream
           .emits[F, Byte](bytes)
           .through(fs2.text.utf8.decode)
           .compile

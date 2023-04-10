@@ -41,18 +41,20 @@ object Config {
     implicit val settingsArg: Argument[Either[Settings, Either[Path, UseStdIn.type]]] =
       Argument.from("json:settings|file:path|-")(_.split(':').toList match {
         case "json" :: rest =>
-          parser.decode[Settings](rest.mkString(":"))
+          parser
+            .decode[Settings](rest.mkString(":"))
             .bimap(e => s"Invalid json: ${e.getMessage}", _.asLeft)
             .toValidatedNel
         case "file" :: rest =>
           val path = rest.mkString(":")
-          Validated.catchOnly[InvalidPathException](Path(path))
+          Validated
+            .catchOnly[InvalidPathException](Path(path))
             .bimap(
               e => s"Invalid path <$path>: ${e.getMessage}".pure[NonEmptyList],
               _.asLeft.asRight
             )
-        case "-" :: Nil => UseStdIn.asRight.asRight.validNel
-        case _ => """Expected Json prefixed with "json:" or a path prefixed with "file:" or "-" for stdin""".invalidNel
+        case "-" :: Nil     => UseStdIn.asRight.asRight.validNel
+        case _              => """Expected Json prefixed with "json:" or a path prefixed with "file:" or "-" for stdin""".invalidNel
       })
 
     implicit val uriPathArg: Argument[Uri.Path] = Argument.from("path") {
@@ -83,42 +85,44 @@ object Config {
     private def die: F[Config] = new IllegalArgumentException().raiseError[F, Config]
     private def resolveSettings(location: Either[Settings, Either[Path, UseStdIn.type]]): F[Settings] =
       location match {
-        case Left(settings) => settings.pure[F]
+        case Left(settings)      => settings.pure[F]
         case Right(readLocation) =>
-          readLocation.fold(
-            Files[F].readAll(_).through(text.utf8.decode),
-            _ => fs2.io.stdinUtf8[F](4096).through(text.lines)
-          )
-          .compile
-          .string
-          .flatMap { raw =>
-            parser
-              .parse(raw)
-              .leftMap(e => new IllegalArgumentException(s"Malformed settings JSON: ${e.getMessage}"))
-              .flatMap { json =>
-                json.hcursor
-                  .asAcc[Settings]
-                  .toEither
-                  .leftMap { decodeErrors =>
-                    new IllegalArgumentException(
-                      decodeErrors.mkString_("Invalid settings JSON:\n", "\n", "\n")
-                    )
-                  }
-              }
-              .liftTo[F]
-          }
+          readLocation
+            .fold(
+              Files[F].readAll(_).through(text.utf8.decode),
+              _ => fs2.io.stdinUtf8[F](4096).through(text.lines)
+            )
+            .compile
+            .string
+            .flatMap { raw =>
+              parser
+                .parse(raw)
+                .leftMap(e => new IllegalArgumentException(s"Malformed settings JSON: ${e.getMessage}"))
+                .flatMap { json =>
+                  json
+                    .hcursor
+                    .asAcc[Settings]
+                    .toEither
+                    .leftMap { decodeErrors =>
+                      new IllegalArgumentException(
+                        decodeErrors.mkString_("Invalid settings JSON:\n", "\n", "\n")
+                      )
+                    }
+                }
+                .liftTo[F]
+            }
       }
 
     override def load: F[Config] = {
       val command = Command(name = "mock4s", header = "Mock API server built on Http4s")(
         (hostOpt, portOpt, settingsJsonOpt, settingsRootOpt).tupled
       )
-      command.parse(args, sys.env)
+      command
+        .parse(args, sys.env)
         .fold(
           help => Console[F].errorln(help) >> die,
-          {
-            case (host, port, location, settingsRoot) =>
-              resolveSettings(location).map(Config(host, port, _, settingsRoot))
+          { case (host, port, location, settingsRoot) =>
+            resolveSettings(location).map(Config(host, port, _, settingsRoot))
           }
         )
     }

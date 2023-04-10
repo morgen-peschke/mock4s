@@ -9,7 +9,7 @@ import org.typelevel.ci.CIString
 import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators, UsingEq}
 import peschke.mock4s.utils.Circe._
 
-object HeaderPredicate extends PredicateWrapper[Header.Raw]{
+object HeaderPredicate extends PredicateWrapper[Header.Raw] {
   case class BaseHeaderPred(name: CIString, value: StringPredicate.Type) extends Predicate[Header.Raw] {
     override def test(a: Header.Raw): Boolean = a.name === name && value.test(a.value)
   }

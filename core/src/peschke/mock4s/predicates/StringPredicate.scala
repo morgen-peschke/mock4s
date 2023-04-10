@@ -66,18 +66,18 @@ object StringPredicate extends PredicateWrapper[String] {
     )
 
     implicit val encoder: Encoder[StringTests] = Encoder.instance {
-      case ssp@StartsWith(_) => ssp.asJson
-      case ssp@EndsWith(_) => ssp.asJson
-      case ssp@Contains(_) => ssp.asJson
-      case ssp@Matches(_) => ssp.asJson
+      case ssp @ StartsWith(_) => ssp.asJson
+      case ssp @ EndsWith(_)   => ssp.asJson
+      case ssp @ Contains(_)   => ssp.asJson
+      case ssp @ Matches(_)    => ssp.asJson
     }
 
     implicit val eq: Eq[StringTests] = Eq.instance {
       case (StartsWith(a), StartsWith(b)) => a === b
-      case (EndsWith(a), EndsWith(b)) => a === b
-      case (Contains(a), Contains(b)) => a === b
-      case (Matches(a), Matches(b)) => a.regex === b.regex
-      case _ => false 
+      case (EndsWith(a), EndsWith(b))     => a === b
+      case (Contains(a), Contains(b))     => a === b
+      case (Matches(a), Matches(b))       => a.regex === b.regex
+      case _                              => false
     }
   }
 

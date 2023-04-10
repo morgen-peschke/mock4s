@@ -8,7 +8,7 @@ import peschke.mock4s.models.ParsedRequest
 trait RequestParser[F[_]] {
   def parse(request: Request[F]): F[ParsedRequest]
 }
-object RequestParser {
+object RequestParser      {
   def apply[F[_]](implicit RP: RequestParser[F]): RP.type = RP
 
   def default[F[_]: Concurrent: BodyParser]: RequestParser[F] =

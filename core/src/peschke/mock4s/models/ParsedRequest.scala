@@ -7,16 +7,14 @@ import io.circe.{Decoder, Encoder, Json}
 import org.http4s.{Header, Method, Query, Uri}
 import peschke.mock4s.utils.Circe._
 
-final case class ParsedRequest(route: ParsedRequest.Route,
-                               headers: List[Header.Raw],
-                               body: ParsedBody)
+final case class ParsedRequest(route: ParsedRequest.Route, headers: List[Header.Raw], body: ParsedBody)
 object ParsedRequest {
   final case class Route(method: Method, path: Uri.Path, query: Query)
   object Route {
-    implicit val eq: Eq[Route] = Eq.instance { (a,b) =>
+    implicit val eq: Eq[Route] = Eq.instance { (a, b) =>
       a.method === b.method &&
-        a.path === b.path &&
-        a.query === b.query
+      a.path === b.path &&
+      a.query === b.query
     }
 
     implicit val decoder: Decoder[Route] = accumulatingDecoder { c =>
@@ -30,17 +28,17 @@ object ParsedRequest {
     implicit val encoder: Encoder[Route] = Encoder.instance { r =>
       Json.obj(
         "method" := r.method,
-        "path" := r.path,
-        "query" := r.query
+        "path"   := r.path,
+        "query"  := r.query
       )
     }
   }
 
   implicit val encoder: Encoder[ParsedRequest] = Encoder.instance { pr =>
     Json.obj(
-      "route" := pr.route,
+      "route"   := pr.route,
       "headers" := pr.headers,
-      "body" := pr.body
+      "body"    := pr.body
     )
   }
 }

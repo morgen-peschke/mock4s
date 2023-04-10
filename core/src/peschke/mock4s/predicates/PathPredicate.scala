@@ -11,16 +11,16 @@ import peschke.mock4s.utils.Circe._
 import scala.annotation.tailrec
 
 sealed trait PathPredicate extends Predicate[Path]
-object PathPredicate extends PredicateWrapper[Path] {
+object PathPredicate       extends PredicateWrapper[Path] {
   sealed trait Token
   object Token {
     final case class Literal(segment: Path.Segment) extends Token
-    case object Wildcard extends Token
+    case object Wildcard                            extends Token
 
     implicit val eq: Eq[Token] = Eq.instance {
       case (Literal(a), Literal(b)) => a === b
-      case (Wildcard, Wildcard) => true
-      case _ => false
+      case (Wildcard, Wildcard)     => true
+      case _                        => false
     }
   }
 
@@ -29,12 +29,12 @@ object PathPredicate extends PredicateWrapper[Path] {
       @tailrec
       def loop(path: List[Path.Segment], remaining: List[Token]): Boolean =
         path match {
-          case Nil => remaining.isEmpty
+          case Nil                   => remaining.isEmpty
           case segment :: restOfPath =>
             remaining match {
               case (Token.Literal(`segment`) | Token.Wildcard) :: restOfTokens =>
                 loop(restOfPath, restOfTokens)
-              case _ => false
+              case _                                                           => false
             }
         }
 
@@ -57,25 +57,25 @@ object PathPredicate extends PredicateWrapper[Path] {
       Path(
         segments = sanitized.tokens.toVector.map {
           case Token.Literal(segment) => segment
-          case Token.Wildcard => Path.Segment("*")
+          case Token.Wildcard         => Path.Segment("*")
         },
         absolute = sanitized.absolute,
         endsWithSlash = sanitized.endsWithSlash
       )
     }
 
-    implicit val eq: Eq[Sanitized] = Eq.instance { (a,b) =>
+    implicit val eq: Eq[Sanitized] = Eq.instance { (a, b) =>
       a.absolute === b.absolute &&
-        a.endsWithSlash === b.endsWithSlash &&
-        a.tokens === b.tokens
+      a.endsWithSlash === b.endsWithSlash &&
+      a.tokens === b.tokens
     }
   }
 
   implicit val pathPredicateDecoder: Decoder[PathPredicate] =
     Decoder[Sanitized].at("sanitized").widen
 
-  implicit val pathPredicateEncoder: Encoder[PathPredicate] = Encoder.instance {
-    case s @ Sanitized(_, _, _) => Json.obj("sanitized" := s)
+  implicit val pathPredicateEncoder: Encoder[PathPredicate] = Encoder.instance { case s @ Sanitized(_, _, _) =>
+    Json.obj("sanitized" := s)
   }
 
   implicit val pathPredicateEq: Eq[PathPredicate] = Eq.instance {

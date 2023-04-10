@@ -12,9 +12,10 @@ object CliApp extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = {
     val logger = LoggerFactory.getLogger[IO]
 
-    Config.parse[IO](args).load.redeemWith(
-      logger.error(_)("Unable to start up") >> ExitCode.Error.pure[IO],
-      SetupServer.setup[IO](_).useForever.as(ExitCode.Success)
-    )
+    Config
+      .parse[IO](args).load.redeemWith(
+        logger.error(_)("Unable to start up") >> ExitCode.Error.pure[IO],
+        SetupServer.setup[IO](_).useForever.as(ExitCode.Success)
+      )
   }
 }

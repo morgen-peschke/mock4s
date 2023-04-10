@@ -10,8 +10,8 @@ import peschke.mock4s.utils.Orphans._
 trait Predicate[A] {
   def test(a: A): Boolean
 }
-object Predicate {
-  abstract class SimpleEq[A: Eq: Decoder: Encoder] extends PredicateWrapper[A] {self =>
+object Predicate   {
+  abstract class SimpleEq[A: Eq: Decoder: Encoder] extends PredicateWrapper[A] { self =>
     type Base = Fixed[A] |+| UsingEq[A]
 
     override implicit val baseDecoder: Decoder[Base] = GeneratedDecoder[Base].decoder
@@ -42,7 +42,7 @@ object Predicate {
     }
   }
 
-  abstract class SimpleOrder[A: Order : Decoder : Encoder] extends PredicateWrapper[A] {self =>
+  abstract class SimpleOrder[A: Order: Decoder: Encoder] extends PredicateWrapper[A] { self =>
     type Base = Fixed[A] |+| UsingEq[A] |+| UsingOrder[A]
 
     override implicit val baseDecoder: Decoder[Base] = GeneratedDecoder[Base].decoder
@@ -148,14 +148,14 @@ object Predicate {
     )
 
     implicit def encoder[A]: Encoder[Fixed[A]] = Encoder.instance {
-      case p@Always() => p.asJson
-      case p@Never() => p.asJson
+      case p @ Always() => p.asJson
+      case p @ Never()  => p.asJson
     }
 
     implicit def eq[A]: Eq[Fixed[A]] = Eq.instance {
       case (Always(), Always()) => true
-      case (Never(), Never()) => true
-      case _ => false
+      case (Never(), Never())   => true
+      case _                    => false
     }
   }
 
@@ -178,7 +178,7 @@ object Predicate {
       override def test(a: A): Boolean = sentinels.exists(_ === a)
     }
     object In {
-      implicit def decoder[A: Decoder : Eq]: Decoder[In[A]] = Decoder[List[A]].map(In[A]).at("in")
+      implicit def decoder[A: Decoder: Eq]: Decoder[In[A]] = Decoder[List[A]].map(In[A]).at("in")
 
       implicit def encoder[A: Encoder]: Encoder[In[A]] =
         Encoder.instance(in => Json.obj("in" := in.sentinels))
@@ -192,14 +192,14 @@ object Predicate {
     )
 
     implicit def encoder[A: Encoder]: Encoder[UsingEq[A]] = Encoder.instance {
-      case p@Is(_) => p.asJson
-      case p@In(_) => p.asJson
+      case p @ Is(_) => p.asJson
+      case p @ In(_) => p.asJson
     }
 
     implicit def eq[A: Eq]: Eq[UsingEq[A]] = Eq.instance {
       case (a: Is[A], b: Is[A]) => a === b
       case (a: In[A], b: In[A]) => a === b
-      case _ => false
+      case _                    => false
     }
   }
 
@@ -209,7 +209,7 @@ object Predicate {
       override def test(a: A): Boolean = a < sentinel
     }
     object LessThan {
-      implicit def decoder[A: Decoder : PartialOrder]: Decoder[LessThan[A]] = Decoder[A].map(LessThan[A]).at("<")
+      implicit def decoder[A: Decoder: PartialOrder]: Decoder[LessThan[A]] = Decoder[A].map(LessThan[A]).at("<")
 
       implicit def encoder[A: Encoder]: Encoder[LessThan[A]] =
         Encoder.instance(in => Json.obj("<" := in.sentinel))
@@ -221,7 +221,7 @@ object Predicate {
       override def test(a: A): Boolean = a <= sentinel
     }
     object LessThanEq {
-      implicit def decoder[A: Decoder : PartialOrder]: Decoder[LessThanEq[A]] = Decoder[A].map(LessThanEq[A]).at("<=")
+      implicit def decoder[A: Decoder: PartialOrder]: Decoder[LessThanEq[A]] = Decoder[A].map(LessThanEq[A]).at("<=")
 
       implicit def encoder[A: Encoder]: Encoder[LessThanEq[A]] =
         Encoder.instance(in => Json.obj("<=" := in.sentinel))
@@ -233,7 +233,7 @@ object Predicate {
       override def test(a: A): Boolean = a > sentinel
     }
     object GreaterThan {
-      implicit def decoder[A: Decoder : PartialOrder]: Decoder[GreaterThan[A]] = Decoder[A].map(GreaterThan[A]).at(">")
+      implicit def decoder[A: Decoder: PartialOrder]: Decoder[GreaterThan[A]] = Decoder[A].map(GreaterThan[A]).at(">")
 
       implicit def encoder[A: Encoder]: Encoder[GreaterThan[A]] =
         Encoder.instance(in => Json.obj(">" := in.sentinel))
@@ -245,7 +245,8 @@ object Predicate {
       override def test(a: A): Boolean = a >= sentinel
     }
     object GreaterThanEq {
-      implicit def decoder[A: Decoder : PartialOrder]: Decoder[GreaterThanEq[A]] = Decoder[A].map(GreaterThanEq[A]).at(">=")
+      implicit def decoder[A: Decoder: PartialOrder]: Decoder[GreaterThanEq[A]] =
+        Decoder[A].map(GreaterThanEq[A]).at(">=")
 
       implicit def encoder[A: Encoder]: Encoder[GreaterThanEq[A]] =
         Encoder.instance(in => Json.obj(">=" := in.sentinel))
@@ -253,7 +254,7 @@ object Predicate {
       implicit def eq[A: Eq]: Eq[GreaterThanEq[A]] = Eq.by(_.sentinel)
     }
 
-    implicit def decoder[A: Decoder : PartialOrder]: Decoder[UsingOrder[A]] = anyOf[UsingOrder[A]](
+    implicit def decoder[A: Decoder: PartialOrder]: Decoder[UsingOrder[A]] = anyOf[UsingOrder[A]](
       LessThan.decoder[A].widen,
       LessThanEq.decoder[A].widen,
       GreaterThan.decoder[A].widen,
@@ -261,18 +262,18 @@ object Predicate {
     )
 
     implicit def encoder[A: Encoder]: Encoder[UsingOrder[A]] = Encoder.instance {
-      case p @ LessThan(_) => p.asJson
-      case p @ LessThanEq(_) => p.asJson
-      case p @ GreaterThan(_) => p.asJson
+      case p @ LessThan(_)      => p.asJson
+      case p @ LessThanEq(_)    => p.asJson
+      case p @ GreaterThan(_)   => p.asJson
       case p @ GreaterThanEq(_) => p.asJson
     }
 
     implicit def eq[A: Eq]: Eq[UsingOrder[A]] = Eq.instance {
-      case (a: LessThan[A], b: LessThan[A]) => a === b
-      case (a: LessThanEq[A], b: LessThanEq[A]) => a === b
-      case (a: GreaterThan[A], b: GreaterThan[A]) => a === b
+      case (a: LessThan[A], b: LessThan[A])           => a === b
+      case (a: LessThanEq[A], b: LessThanEq[A])       => a === b
+      case (a: GreaterThan[A], b: GreaterThan[A])     => a === b
       case (a: GreaterThanEq[A], b: GreaterThanEq[A]) => a === b
-      case _ => false
+      case _                                          => false
     }
   }
 
@@ -287,11 +288,13 @@ object Predicate {
       override def test(a: A): Boolean = !combinator.test(a)
     }
 
-    final case class ForAll[A, PA <: Predicate[A]](combinators: List[UsingCombinators[A, PA]]) extends UsingCombinators[A, PA] {
+    final case class ForAll[A, PA <: Predicate[A]](combinators: List[UsingCombinators[A, PA]])
+        extends UsingCombinators[A, PA] {
       override def test(a: A): Boolean = combinators.forall(_.test(a))
     }
 
-    final case class Exists[A, PA <: Predicate[A]](combinators: List[UsingCombinators[A, PA]]) extends UsingCombinators[A, PA] {
+    final case class Exists[A, PA <: Predicate[A]](combinators: List[UsingCombinators[A, PA]])
+        extends UsingCombinators[A, PA] {
       override def test(a: A): Boolean = combinators.exists(_.test(a))
     }
 
@@ -299,10 +302,10 @@ object Predicate {
       Defer[Eq].fix { implicit eq =>
         Eq.instance {
           case (Wrapped(a), Wrapped(b)) => a === b
-          case (Not(a), Not(b)) => a === b
-          case (ForAll(a), ForAll(b)) => a === b
-          case (Exists(a), Exists(b)) => a === b
-          case _ => false
+          case (Not(a), Not(b))         => a === b
+          case (ForAll(a), ForAll(b))   => a === b
+          case (Exists(a), Exists(b))   => a === b
+          case _                        => false
         }
       }
 
@@ -320,8 +323,8 @@ object Predicate {
     implicit def encoder[A, PA <: Predicate[A]](implicit epa: Encoder[PA]): Encoder[UsingCombinators[A, PA]] = {
       Defer[Encoder].fix[UsingCombinators[A, PA]] { implicit euc =>
         Encoder.instance[UsingCombinators[A, PA]] {
-          case Wrapped(predicate) => predicate.asJson
-          case Not(combinator) => Json.obj("!" := combinator)
+          case Wrapped(predicate)  => predicate.asJson
+          case Not(combinator)     => Json.obj("!" := combinator)
           case ForAll(combinators) => Json.obj("forall" := combinators)
           case Exists(combinators) => Json.obj("exists" := combinators)
         }

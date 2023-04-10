@@ -11,7 +11,7 @@ object Orphans {
       def loop(f: () => Eq[A]): Boolean =
         f() match {
           case DeferredEq(f) => loop(f)
-          case next => next.eqv(x,y)
+          case next          => next.eqv(x, y)
         }
 
       loop(eq)
@@ -27,7 +27,7 @@ object Orphans {
       def loop(f: () => PartialOrder[A]): Double =
         f() match {
           case DeferredPartialOrder(f) => loop(f)
-          case next => next.partialCompare(x, y)
+          case next                    => next.partialCompare(x, y)
         }
 
       loop(PartialOrder)

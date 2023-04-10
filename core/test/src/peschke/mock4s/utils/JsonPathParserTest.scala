@@ -9,7 +9,7 @@ import org.scalacheck.Prop.forAll
 import peschke.mock4s.models.JsonPath
 import peschke.mock4s.models.JsonPath.Segment
 import peschke.mock4s.models.JsonPath.Segment.{AtIndex, BareField, DownArray, QuotedField}
-import peschke.mock4s.utils.JsonPathParserTest.{TestInput, atIndexSegments, bareFields, downArraySegments, quotedFields}
+import peschke.mock4s.utils.JsonPathParserTest.{atIndexSegments, bareFields, downArraySegments, quotedFields, TestInput}
 
 class JsonPathParserTest extends ScalaCheckSuite {
 
@@ -54,7 +54,7 @@ class JsonPathParserTest extends ScalaCheckSuite {
   property("parse chained selections") {
     val chainableSegments = Gen.oneOf(quotedFields, atIndexSegments, downArraySegments)
     val gen = for {
-      base <- Gen.oneOf[(String, Segment)](bareFields, quotedFields, atIndexSegments, downArraySegments)
+      base    <- Gen.oneOf[(String, Segment)](bareFields, quotedFields, atIndexSegments, downArraySegments)
       chained <- Gen.resize(20, Gen.nonEmptyListOf(chainableSegments)).map(Chain.fromSeq)
     } yield {
       val (baseRaw, baseSegment) = base
@@ -73,7 +73,7 @@ object JsonPathParserTest extends Assertions {
 
     def run()(implicit loc: Location): Unit = {
       JsonPathParser.parse(raw) match {
-        case Validated.Invalid(e) =>
+        case Validated.Invalid(e)    =>
           fail(show"Unable to parse <$raw>:${e.mkString_("\n  ", "\n  ", "\n")}")
         case Validated.Valid(actual) =>
           assertEquals(actual, expected)(loc, implicitly)
@@ -111,7 +111,8 @@ object JsonPathParserTest extends Assertions {
       }
     )
     val validChars = Gen.oneOf(escapedCharacter, unescapedChar)
-    Gen.chooseNum(1, 20)
+    Gen
+      .chooseNum(1, 20)
       .flatMap(Gen.listOfN(_, validChars))
       .map { chars =>
         val (encoded, raw) = chars.unzip
@@ -120,9 +121,9 @@ object JsonPathParserTest extends Assertions {
   }
 
   val atIndexSegments: Gen[(String, AtIndex)] =
-   Gen.chooseNum(0, 9999).map { index =>
-     (s"[$index]", AtIndex(index))
-   }
+    Gen.chooseNum(0, 9999).map { index =>
+      (s"[$index]", AtIndex(index))
+    }
 
   val downArraySegments: Gen[(String, DownArray.type)] = Gen.const("[]" -> DownArray)
 }

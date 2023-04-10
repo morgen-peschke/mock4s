@@ -20,9 +20,9 @@ object JsonPathParser {
     val parser: Parser[Type] = Parser.namedAccumulating("hexCharParser") { input =>
       input.uncons match {
         case Some(c -> state) if isHexDigit(c.toUpper) => Result.valid(apply(c), state)
-        case Some(c -> _) =>
+        case Some(c -> _)                              =>
           ParseError.one(s"Expected hex digit, but was '$c'", input).invalid
-        case None =>
+        case None                                      =>
           ParseError.one("Expected hex digit, but ran out of input", input).invalid
       }
     }
@@ -32,19 +32,19 @@ object JsonPathParser {
     val validChar: Parser[Option[IdentifierChar]] =
       Parser.accumulating[Option[IdentifierChar]] { input =>
         input.uncons match {
-          case None => Result.valid(none[IdentifierChar], input)
+          case None                => Result.valid(none[IdentifierChar], input)
           case Some(char -> state) =>
             char match {
-              case '.' | '[' => Result.valid(none[IdentifierChar], input)
+              case '.' | '['                                        => Result.valid(none[IdentifierChar], input)
               case c if c.isLetterOrDigit || c === '-' || c === '_' => Result.valid(IdentifierChar(char).some, state)
-              case _ =>
+              case _                                                =>
                 ParseError.one("Base JSON field names can only contain letters, digits, '-', or '_'", state).invalid
             }
         }
       }
 
     val bareFieldParser: Parser[Segment] = validChar.repeatWhileSomeNec.map { fieldChars =>
-        BareField(fieldChars.map(IdentifierChar.raw).mkString_(""))
+      BareField(fieldChars.map(IdentifierChar.raw).mkString_(""))
     }
   }
 
@@ -56,12 +56,12 @@ object JsonPathParser {
     val unescaped: Parser[Option[Either[Escape, IdentifierChar]]] =
       Parser.accumulating[Option[Either[Escape, IdentifierChar]]] { input =>
         input.uncons match {
-          case None => Result.valid(none[Either[Escape, IdentifierChar]], input)
+          case None                => Result.valid(none[Either[Escape, IdentifierChar]], input)
           case Some(char -> state) =>
             char match {
               case '\\' => Result.valid[Option[Either[Escape, IdentifierChar]]](Escape.asLeft.some, state)
-              case '"' => Result.valid(none[Either[Escape, IdentifierChar]], input)
-              case _ =>
+              case '"'  => Result.valid(none[Either[Escape, IdentifierChar]], input)
+              case _    =>
                 Result.valid[Option[Either[Escape, IdentifierChar]]](IdentifierChar(char).asRight.some, state)
             }
         }
@@ -80,16 +80,16 @@ object JsonPathParser {
     val escaped: Parser[IdentifierChar] =
       Parser.accumulating[IdentifierChar] { input =>
         input.uncons match {
-          case None => ParseError.one("expected at least one character after '\'", input).invalid
+          case None                => ParseError.one("expected at least one character after '\'", input).invalid
           case Some(char -> state) =>
             def validChar(c: Char): ParseError.OrValid[IdentifierChar] = Result.valid(IdentifierChar(c), state)
             char match {
               case '\\' | '/' | '"' => validChar(char)
-              case 'b' => validChar('\u0008')
-              case 'f' => validChar('\u000C')
-              case 'n' => validChar('\n')
-              case 't' => validChar('\t')
-              case 'u' =>
+              case 'b'              => validChar('\u0008')
+              case 'f'              => validChar('\u000C')
+              case 'n'              => validChar('\n')
+              case 't'              => validChar('\t')
+              case 'u'              =>
                 fourHexDigits
                   .parseV(state)
                   .andThen { hexString =>
@@ -100,7 +100,7 @@ object JsonPathParser {
                       }
                       .map(c => hexString.as(IdentifierChar(c)))
                   }
-              case _ =>
+              case _                =>
                 ParseError.one(s"invalid escape '\\$char'", input).invalid
             }
         }
@@ -110,8 +110,8 @@ object JsonPathParser {
       Parser.accumulating[Option[IdentifierChar]] { input =>
         unescaped.parseV(input).andThen { result =>
           result.value match {
-            case None => result.as(none[IdentifierChar]).valid
-            case Some(Right(char)) => result.as(char.some).valid
+            case None               => result.as(none[IdentifierChar]).valid
+            case Some(Right(char))  => result.as(char.some).valid
             case Some(Left(Escape)) => escaped.parseV(result.state).map(_.map(_.some))
           }
         }
@@ -155,16 +155,14 @@ object JsonPathParser {
       Parser.findValid[Segment](quotedField, downArray).repeated.withEnclosingName
 
     val fieldAndChainedSegments: Parser[NonEmptyChain[Segment]] =
-      (Parser.findValid(quotedField, bareIdentifier.bareFieldParser) ~+:> chainableSegments)
-        .withEnclosingName
+      (Parser.findValid(quotedField, bareIdentifier.bareFieldParser) ~+:> chainableSegments).withEnclosingName
 
     val arrayAndChainedSegments: Parser[NonEmptyChain[Segment]] =
       (downArray ~+:> chainableSegments).withEnclosingName
 
     val chunk: Parser[NonEmptyChain[Segment]] =
       period *>
-        Parser.findValid(arrayAndChainedSegments, fieldAndChainedSegments)
-          .withEnclosingName
+        Parser.findValid(arrayAndChainedSegments, fieldAndChainedSegments).withEnclosingName
 
     val segmentParser: Parser[NonEmptyChain[Segment]] =
       chunk.repeatedNec.map(_.flatten).withEnclosingName

@@ -18,20 +18,24 @@ class RequestPredicateJsonTest extends FunSuite with MUnitCirce {
 
   test("WhenHeaders") {
     assertCodec(
-      RequestPredicate.headers(List(
-        HeaderPredicate.header(ci"h0", StringPredicate.is("v0")),
-        HeaderPredicate.header(ci"h1", StringPredicate.is("v1"))
-      )),
-      Json.obj("headers" := Json.arr(
-        Json.obj(
-          "name" := "h0",
-          "value" := Json.obj("is" := "v0")
-        ),
-        Json.obj(
-          "name" := "h1",
-          "value" := Json.obj("is" := "v1")
+      RequestPredicate.headers(
+        List(
+          HeaderPredicate.header(ci"h0", StringPredicate.is("v0")),
+          HeaderPredicate.header(ci"h1", StringPredicate.is("v1"))
         )
-      ))
+      ),
+      Json.obj(
+        "headers" := Json.arr(
+          Json.obj(
+            "name"  := "h0",
+            "value" := Json.obj("is" := "v0")
+          ),
+          Json.obj(
+            "name"  := "h1",
+            "value" := Json.obj("is" := "v1")
+          )
+        )
+      )
     )
   }
 

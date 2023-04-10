@@ -10,7 +10,7 @@ import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators}
 import peschke.mock4s.utils.Circe._
 
 sealed trait RequestPredicate extends Predicate[ParsedRequest]
-object RequestPredicate extends PredicateWrapper[ParsedRequest] {
+object RequestPredicate       extends PredicateWrapper[ParsedRequest] {
 
   final case class WhenRoute(p: RoutePredicate.Type) extends RequestPredicate {
     override def test(a: ParsedRequest): Boolean = p.test(a.route)
@@ -31,16 +31,16 @@ object RequestPredicate extends PredicateWrapper[ParsedRequest] {
   )
 
   implicit val requestPredicateEncoder: Encoder[RequestPredicate] = Encoder.instance {
-    case WhenRoute(p) => Json.obj("route" := p)
+    case WhenRoute(p)    => Json.obj("route" := p)
     case WhenHeaders(px) => Json.obj("headers" := px)
-    case WhenBody(p) => Json.obj("body" := p)
+    case WhenBody(p)     => Json.obj("body" := p)
   }
 
   implicit val requestPredicateEq: Eq[RequestPredicate] = Eq.instance {
-    case (WhenRoute(a), WhenRoute(b)) => a === b
+    case (WhenRoute(a), WhenRoute(b))     => a === b
     case (WhenHeaders(a), WhenHeaders(b)) => a === b
-    case (WhenBody(a), WhenBody(b)) => a === b
-    case _ => false
+    case (WhenBody(a), WhenBody(b))       => a === b
+    case _                                => false
   }
 
   override type Base = Fixed[ParsedRequest] |+| RequestPredicate
@@ -48,13 +48,17 @@ object RequestPredicate extends PredicateWrapper[ParsedRequest] {
   override implicit def baseDecoder: Decoder[Base] = GeneratedDecoder[Base].decoder
   override implicit def baseEncoder: Encoder[Base] = GeneratedEncoder[Base].encoder
 
-  val always: Type = wrap(lhs[Base, UsingCombinators[ParsedRequest, Base]](
-    lhs[Fixed[ParsedRequest], RequestPredicate](Fixed.Always[ParsedRequest]())
-  ))
+  val always: Type = wrap(
+    lhs[Base, UsingCombinators[ParsedRequest, Base]](
+      lhs[Fixed[ParsedRequest], RequestPredicate](Fixed.Always[ParsedRequest]())
+    )
+  )
 
-  val never: Type = wrap(lhs[Base, UsingCombinators[ParsedRequest, Base]](
-    lhs[Fixed[ParsedRequest], RequestPredicate](Fixed.Never[ParsedRequest]())
-  ))
+  val never: Type = wrap(
+    lhs[Base, UsingCombinators[ParsedRequest, Base]](
+      lhs[Fixed[ParsedRequest], RequestPredicate](Fixed.Never[ParsedRequest]())
+    )
+  )
 
   def route(p: RoutePredicate.Type): Type = wrap {
     lhs[Base, UsingCombinators[ParsedRequest, Base]](

@@ -20,8 +20,8 @@ object MockDefinition {
   }
   implicit val actionEncoder: Encoder[Action] = Encoder.instance { a =>
     Json.obj(
-      "name" := a.name,
-      "when" := a.when,
+      "name"         := a.name,
+      "when"         := a.when,
       "respond-with" := a.respondWith
     )
   }
@@ -35,8 +35,8 @@ object MockDefinition {
   }
   implicit val encoder: Encoder[MockDefinition] = Encoder.instance { mockDef =>
     Json.obj(
-      "name" := mockDef.name,
-      "route" := mockDef.route,
+      "name"    := mockDef.name,
+      "route"   := mockDef.route,
       "actions" := mockDef.actions
     )
   }

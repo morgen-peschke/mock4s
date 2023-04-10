@@ -8,7 +8,7 @@ import peschke.mock4s.models.{Body, ResponseDef}
 trait ResponseRenderer[F[_]] {
   def render(responseDef: ResponseDef): F[Response[F]]
 }
-object ResponseRenderer {
+object ResponseRenderer      {
   def apply[F[_]](implicit RR: ResponseRenderer[F]): RR.type = RR
 
   def default[F[_]: Applicative]: ResponseRenderer[F] =
@@ -18,12 +18,11 @@ object ResponseRenderer {
         httpVersion = responseDef.httpVersion,
         headers = Headers(responseDef.headers)
       )
-      Applicative[F].pure(
-        responseDef.body match {
-          case Body.Empty => base.withEmptyBody
-          case Body.TextBody(text) => base.withEntity(text)
-          case Body.JsonBody(json) => base.withEntity(json)
-          case Body.Bytes(bytes) => base.withEntity(bytes)
-        })
+      Applicative[F].pure(responseDef.body match {
+        case Body.Empty          => base.withEmptyBody
+        case Body.TextBody(text) => base.withEntity(text)
+        case Body.JsonBody(json) => base.withEntity(json)
+        case Body.Bytes(bytes)   => base.withEntity(bytes)
+      })
     }
 }

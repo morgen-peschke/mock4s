@@ -8,11 +8,14 @@ import munit.internal.difflib.{ComparisonFailExceptionHandler, Diffs}
 import munit.{Assertions, Location}
 
 trait MUnitCats { self: Assertions =>
-  private def munitComparisonHandler(
-                                      actualObtained: Any,
-                                      actualExpected: Any
-                                    ): ComparisonFailExceptionHandler =
-    (message: String, _: String, _: String, loc: Location) => failComparison(message, actualObtained, actualExpected)(loc)
+  private def munitComparisonHandler
+    (
+        actualObtained: Any,
+        actualExpected: Any
+    )
+    : ComparisonFailExceptionHandler =
+    (message: String, _: String, _: String, loc: Location) =>
+      failComparison(message, actualObtained, actualExpected)(loc)
 
   def assertValid[I: Show, V](validated: Validated[I, V])(implicit location: Location): V =
     validated.valueOr { i =>
@@ -39,7 +42,10 @@ trait MUnitCats { self: Assertions =>
       fail("Expected Some(_), but was None")
     }
 
-  def assertEq[A: Eq : Show](obtained: A, expected: A, clue: Any = "values are not the same")(implicit location: Location): Unit =
+  def assertEq[A: Eq: Show]
+    (obtained:          A, expected: A, clue: Any = "values are not the same")
+    (implicit location: Location)
+    : Unit =
     StackTraces.dropInside {
       if (expected =!= obtained) {
         Diffs.assertNoDiff(

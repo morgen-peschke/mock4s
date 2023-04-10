@@ -25,14 +25,14 @@ class StringPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts {
   }
 
   property("is should reject unequal strings") {
-    forAll(unique2[String](arbitrary[String], s => s"$s-")) {
-      case (a, b) => assertRejects(is(a), b)
+    forAll(unique2[String](arbitrary[String], s => s"$s-")) { case (a, b) =>
+      assertRejects(is(a), b)
     }
   }
 
   property("in should accept strings in the list") {
-    forAll(valueInNonEmptyList(arbitrary[String])) {
-      case (a, list) => assertAccepts(in(list), a)
+    forAll(valueInNonEmptyList(arbitrary[String])) { case (a, list) =>
+      assertAccepts(in(list), a)
     }
   }
 
@@ -41,13 +41,13 @@ class StringPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts {
   }
 
   property("in should reject strings not in the list") {
-    forAll(valueNotInNonEmptyList[String](arbitrary[String], s => s"$s-")){
-      case (a, b) => assertRejects(in(b), a)
+    forAll(valueNotInNonEmptyList[String](arbitrary[String], s => s"$s-")) { case (a, b) =>
+      assertRejects(in(b), a)
     }
   }
 
   property("startsWith should accept strings with the prefix") {
-    forAll(arbitrary[String], arbitrary[String]) { (a,b) =>
+    forAll(arbitrary[String], arbitrary[String]) { (a, b) =>
       assertAccepts(startsWith(a), s"$a$b")
     }
   }
@@ -101,7 +101,7 @@ object StringPredicateTest {
   def valueInNonEmptyList[A](gen: Gen[A]): Gen[(A, List[A])] =
     for {
       list <- Gen.nonEmptyListOf(gen)
-      a <- Gen.oneOf(list)
+      a    <- Gen.oneOf(list)
     } yield (a, list)
 
   def valueNotInNonEmptyList[A](gen: Gen[A], munge: A => A): Gen[(A, List[A])] =
