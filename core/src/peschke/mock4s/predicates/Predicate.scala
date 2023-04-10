@@ -1,7 +1,7 @@
 package peschke.mock4s.predicates
 
 import cats.syntax.all._
-import cats.{Defer, Eq, Order}
+import cats.{Defer, Eq, Order, PartialOrder}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
 import peschke.mock4s.utils.Circe._
@@ -205,11 +205,11 @@ object Predicate {
 
   sealed abstract class UsingOrder[A] extends Predicate[A]
   object UsingOrder {
-    final case class LessThan[A: Order](sentinel: A) extends UsingOrder[A] {
+    final case class LessThan[A: PartialOrder](sentinel: A) extends UsingOrder[A] {
       override def test(a: A): Boolean = a < sentinel
     }
     object LessThan {
-      implicit def decoder[A: Decoder : Order]: Decoder[LessThan[A]] = Decoder[A].map(LessThan[A]).at("<")
+      implicit def decoder[A: Decoder : PartialOrder]: Decoder[LessThan[A]] = Decoder[A].map(LessThan[A]).at("<")
 
       implicit def encoder[A: Encoder]: Encoder[LessThan[A]] =
         Encoder.instance(in => Json.obj("<" := in.sentinel))
@@ -217,11 +217,11 @@ object Predicate {
       implicit def eq[A: Eq]: Eq[LessThan[A]] = Eq.by(_.sentinel)
     }
 
-    final case class LessThanEq[A: Order](sentinel: A) extends UsingOrder[A] {
+    final case class LessThanEq[A: PartialOrder](sentinel: A) extends UsingOrder[A] {
       override def test(a: A): Boolean = a <= sentinel
     }
     object LessThanEq {
-      implicit def decoder[A: Decoder : Order]: Decoder[LessThanEq[A]] = Decoder[A].map(LessThanEq[A]).at("<=")
+      implicit def decoder[A: Decoder : PartialOrder]: Decoder[LessThanEq[A]] = Decoder[A].map(LessThanEq[A]).at("<=")
 
       implicit def encoder[A: Encoder]: Encoder[LessThanEq[A]] =
         Encoder.instance(in => Json.obj("<=" := in.sentinel))
@@ -229,11 +229,11 @@ object Predicate {
       implicit def eq[A: Eq]: Eq[LessThanEq[A]] = Eq.by(_.sentinel)
     }
 
-    final case class GreaterThan[A: Order](sentinel: A) extends UsingOrder[A] {
+    final case class GreaterThan[A: PartialOrder](sentinel: A) extends UsingOrder[A] {
       override def test(a: A): Boolean = a > sentinel
     }
     object GreaterThan {
-      implicit def decoder[A: Decoder : Order]: Decoder[GreaterThan[A]] = Decoder[A].map(GreaterThan[A]).at(">")
+      implicit def decoder[A: Decoder : PartialOrder]: Decoder[GreaterThan[A]] = Decoder[A].map(GreaterThan[A]).at(">")
 
       implicit def encoder[A: Encoder]: Encoder[GreaterThan[A]] =
         Encoder.instance(in => Json.obj(">" := in.sentinel))
@@ -241,11 +241,11 @@ object Predicate {
       implicit def eq[A: Eq]: Eq[GreaterThan[A]] = Eq.by(_.sentinel)
     }
 
-    final case class GreaterThanEq[A: Order](sentinel: A) extends UsingOrder[A] {
+    final case class GreaterThanEq[A: PartialOrder](sentinel: A) extends UsingOrder[A] {
       override def test(a: A): Boolean = a >= sentinel
     }
     object GreaterThanEq {
-      implicit def decoder[A: Decoder : Order]: Decoder[GreaterThanEq[A]] = Decoder[A].map(GreaterThanEq[A]).at(">=")
+      implicit def decoder[A: Decoder : PartialOrder]: Decoder[GreaterThanEq[A]] = Decoder[A].map(GreaterThanEq[A]).at(">=")
 
       implicit def encoder[A: Encoder]: Encoder[GreaterThanEq[A]] =
         Encoder.instance(in => Json.obj(">=" := in.sentinel))
@@ -253,7 +253,7 @@ object Predicate {
       implicit def eq[A: Eq]: Eq[GreaterThanEq[A]] = Eq.by(_.sentinel)
     }
 
-    implicit def decoder[A: Decoder : Order]: Decoder[UsingOrder[A]] = anyOf[UsingOrder[A]](
+    implicit def decoder[A: Decoder : PartialOrder]: Decoder[UsingOrder[A]] = anyOf[UsingOrder[A]](
       LessThan.decoder[A].widen,
       LessThanEq.decoder[A].widen,
       GreaterThan.decoder[A].widen,
