@@ -121,7 +121,7 @@ object Predicate   {
     }
     object Always {
       implicit def decoder[A]: Decoder[Always[A]] =
-        fixed("any").as(Always[A]())
+        fixed("any").combine(fixed("always")).as(Always[A]())
 
       implicit def encoder[A]: Encoder[Always[A]] =
         Encoder.instance(_ => Json.fromString("any"))
@@ -134,7 +134,7 @@ object Predicate   {
     }
     object Never {
       implicit def decoder[A]: Decoder[Never[A]] =
-        fixed("fail").as(Never[A]())
+        fixed("fail").combine(fixed("never")).as(Never[A]())
 
       implicit def encoder[A]: Encoder[Never[A]] =
         Encoder.instance(_ => Json.fromString("fail"))
