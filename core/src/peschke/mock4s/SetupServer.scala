@@ -10,6 +10,9 @@ import org.typelevel.log4cats.LoggerFactory
 import peschke.mock4s.algebras.{BodyParser, RequestMatcher, RequestParser, ResponseRenderer}
 
 object SetupServer {
+  def run[F[_]: Async: Network: LoggerFactory](config: Config): F[Nothing] =
+    SetupServer.setup[F](config).useForever
+
   def setup[F[_]: Async: Network: LoggerFactory](config: Config): Resource[F, Server] = {
     implicit val bodyParser: BodyParser[F] = BodyParser.default[F]
     implicit val requestParser: RequestParser[F] = RequestParser.default[F]

@@ -9,5 +9,5 @@ object EntryPoint extends IOApp {
   implicit val logging: LoggerFactory[IO] = Slf4jFactory[IO]
 
   override def run(args: List[String]): IO[ExitCode] =
-    Config.default[IO].load.flatMap(SetupServer.setup[IO](_).useForever).as(ExitCode.Success)
+    Config.default[IO].load.flatMap(SetupServer.run[IO](_)).as(ExitCode.Success)
 }

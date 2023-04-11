@@ -15,7 +15,7 @@ object CliApp extends IOApp {
     Config
       .parse[IO](args).load.redeemWith(
         logger.error(_)("Unable to start up") >> ExitCode.Error.pure[IO],
-        SetupServer.setup[IO](_).useForever.as(ExitCode.Success)
+        SetupServer.run[IO](_).as(ExitCode.Success)
       )
   }
 }
