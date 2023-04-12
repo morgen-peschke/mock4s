@@ -1,13 +1,14 @@
 package peschke.mock4s.algebras
 
 import cats.Monad
+import cats.data.Chain
 import cats.syntax.all._
 import io.circe.Json
 import io.circe.syntax._
 import org.http4s.{Request, Status}
 import org.typelevel.log4cats.LoggerFactory
-import peschke.mock4s.models.MockDefinition.Action
-import peschke.mock4s.models.{Body, MockDefinition, ParsedRequest, ResponseDef}
+import peschke.mock4s.models.MockDefinition.{Action, MockName}
+import peschke.mock4s.models.{Body, ParsedRequest, ResponseDef}
 import peschke.mock4s.utils.Circe._
 
 trait RequestMatcher[F[_]] {
@@ -16,18 +17,21 @@ trait RequestMatcher[F[_]] {
 object RequestMatcher      {
   def apply[F[_]](implicit RP: RequestMatcher[F]): RP.type = RP
 
-  def default[F[_]: Monad: RequestParser: LoggerFactory](mocks: List[MockDefinition]): RequestMatcher[F] =
+  def default[F[_]: Monad: RequestParser: LoggerFactory: MocksManager]: RequestMatcher[F] =
     new RequestMatcher[F] {
       private val logger = LoggerFactory[F].getLogger
 
-      private def findMockDefinition(parsedRequest: ParsedRequest): F[Option[MockDefinition]] =
-        mocks.find(_.route.test(parsedRequest.route)) match {
-          case md @ Some(mockDefinition) =>
-            logger.info(s"Matched mock definition: ${mockDefinition.name}").as(md)
-          case None                      => logger.warn("Unable to find matching mock definition").as(none[MockDefinition])
+      private def findMockDefinition(parsedRequest: ParsedRequest): F[Option[MockName]] = {
+        MocksManager[F].listAllRoutes.flatMap { mocks =>
+          mocks.find(_._2.test(parsedRequest.route)) match {
+            case None => logger.warn("Unable to find matching mock definition").as(none[MockName])
+            case Some((mockName, _)) =>
+              logger.info(s"Matched mock definition: $mockName").as(mockName.some)
+          }
         }
+      }
 
-      private def findAction(actions: List[Action], parsedRequest: ParsedRequest): F[Option[Action]] =
+      private def findAction(actions: Chain[Action], parsedRequest: ParsedRequest): F[Option[Action]] =
         actions.find(_.when.test(parsedRequest)) match {
           case a @ Some(action) => logger.info(s"Found action: ${action.name}").as(a)
           case None             => logger.warn("Unable to find matching action").as(none[Action])
@@ -60,7 +64,14 @@ object RequestMatcher      {
           }
           .flatMap { parsedRequest =>
             findMockDefinition(parsedRequest)
-              .flatMap(_.flatTraverse(md => findAction(md.actions, parsedRequest)))
+              .flatMap(_.traverse(MocksManager[F].listMockActions(_)))
+              .flatMap(_.flatTraverse {
+                case Left(lookupFailed) =>
+                  logger
+                    .warn(show"Matched against a route for a mock that no longer exists: $lookupFailed")
+                    .as(none[Action])
+                case Right(actions) => findAction(actions, parsedRequest)
+              })
               .map(_.fold(notFound(request, parsedRequest))(_.respondWith))
           }
     }

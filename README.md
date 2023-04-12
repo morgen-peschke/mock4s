@@ -13,6 +13,13 @@ Quickstart
 The quickest way to get a server running is using `CliApp` main class: 
 
 ```bash
+mill -i core.runMain --mainClass peschke.mock4s.CliApp --port 9010 --settings 'json:[]'
+```
+
+As this starts a server without any mocks defined, it's only useful when subsequent set up is scripted. The fastest way 
+to get a server running that actually does anything is often using a settings file:
+
+```bash
 mill -i core.runMain --mainClass peschke.mock4s.CliApp --port 9010 --settings 'file:mocks.json'
 ```
 
@@ -44,7 +51,7 @@ text `"Hello World"` would look like this:
 How to run
 ----------
 
-### Command line via `CliApp`
+### Command line via [`CliApp`](core/src/peschke/mock4s/CliApp.scala)
 
 For interactive use, the most comfortable way to start up an instance of the server is using configuration taken from 
 the command line. The easiest way to get information on the command line parameters is the integrated help.
@@ -53,7 +60,7 @@ the command line. The easiest way to get information on the command line paramet
 mill -i core.runMain --mainClass peschke.mock4s.CliApp --help
 ```
 
-#### Command line via `EntryPoint`
+#### Command line via [`EntryPoint`](core/src/peschke/mock4s/EntryPoint.scala)
 
 For situations where starting an instance of the server using command line parameters isn't desirable, `EntryPoint`
 allows configuration using environment variables.
@@ -65,12 +72,14 @@ mill -i core.runMain --mainClass peschke.mock4s.EntryPoint
 #### Embedding a server
 
 Constructing the configuration programmatically and starting the server directly is also very straightforward, as
-`peschke.mock4s.Config` is a case class, and `peschke.mock4s.SetupServer.run` is implemented in terms of the standard
+[`peschke.mock4s.Config`](core/src/peschke/mock4s/Config.scala) is a case class, and 
+[`peschke.mock4s.SetupServer.run`](core/src/peschke/mock4s/SetupServer.scala) is implemented in terms of the standard
 cats-effect typeclasses.
 
-Querying a Server
------------------
-An endpoint is provided to list the current settings, by default at `GET /mock4s/settings`
+Querying/Modifying Server Behavior
+----------------------------------
+Basic CRUD endpoints are provided to view and adjust the current settings. 
+See [`SettingsRoutes`](core/src/peschke/mock4s/SettingsRoutes.scala) for details
 
 Mock Definition
 ---------------
@@ -78,7 +87,7 @@ Mock Definition
 Mocks are defined in a settings file, which is JSON file with a particular format. The top-level is an array, each
 entry is a mock definition. 
 
-These are ordered, so as a practical matter, only a single mock can be defined with `"route": "always"`, and it must 
+These are ordered so, as a practical matter, only a single mock can be defined with `"route": "always"`, and it must 
 be the final mock. Such a mock is not strictly necessary, as a standard "Not Found" response will be returned if no 
 mock matches an incoming request.
 
@@ -96,7 +105,8 @@ mock matches an incoming request.
 Each mock has three parts, a name, a route it handles, and a series of possible actions. 
 
 #### Name
-The `name` is a string, and is used for logging. It must be present, though may be empty.
+The `name` is a string, and is used for logging and as an identifier for CRUD operations. It must be unique within a 
+server.
 
 #### Route
 The `route` is defines conditions when this mock takes responsibility for creating a response. Once a mock matches, 
@@ -106,7 +116,8 @@ no other mock is considered, even if none of the mock's actions match.
 `actions` is an array of conditions and responses, again ordered. If none of the conditions match, a 404 response will
 be generated.
 
-Actions also have a name which is used for logging. It is required, though may be empty.
+Actions also have a name which is used for logging and as an identifier for CRUD operations. The name must be unique
+within a mock.
 
 ### Schema
 

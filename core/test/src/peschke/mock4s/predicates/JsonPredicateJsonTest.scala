@@ -15,9 +15,9 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
       JsonPredicate.always,
       Json.obj("when" := "any")
     )
-    assertCodec(
-      JsonPredicate.always,
-      Json.obj("when" := "always")
+    assertDecodes(
+      Json.obj("when" := "always"),
+      JsonPredicate.always
     )
   }
 
@@ -29,12 +29,12 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
         "when" := "any"
       )
     )
-    assertCodec(
-      JsonPredicate.always(path),
+    assertDecodes(
       Json.obj(
         "path" := path,
         "when" := "always"
-      )
+      ),
+      JsonPredicate.always(path)
     )
   }
 
@@ -43,9 +43,9 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
       JsonPredicate.never,
       Json.obj("when" := "fail")
     )
-    assertCodec(
-      JsonPredicate.never,
-      Json.obj("when" := "never")
+    assertDecodes(
+      Json.obj("when" := "never"),
+      JsonPredicate.never
     )
   }
 
@@ -57,12 +57,12 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
         "when" := "fail"
       )
     )
-    assertCodec(
-      JsonPredicate.never(path),
+    assertDecodes(
       Json.obj(
         "path" := path,
         "when" := "never"
-      )
+      ),
+      JsonPredicate.never(path)
     )
   }
 
