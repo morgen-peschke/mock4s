@@ -1,11 +1,12 @@
 package peschke.mock4s
 
-import cats.data.Validated
+import cats.data.{Chain, NonEmptyChain, Validated}
 import cats.syntax.all._
 import cats.{Eq, Show}
 import munit.internal.console.StackTraces
 import munit.internal.difflib.{ComparisonFailExceptionHandler, Diffs}
 import munit.{Assertions, Location}
+import org.scalacheck.Gen
 
 trait MUnitCats { self: Assertions =>
   private def munitComparisonHandler
@@ -79,5 +80,12 @@ trait MUnitCats { self: Assertions =>
       }
     }
 
+  def chainsOf[A](gen: Gen[A]): Gen[Chain[A]] = Gen.listOf(gen).map(Chain.fromSeq)
+  def nonEmptyChainsOf[A](gen: Gen[A]): Gen[NonEmptyChain[A]] = Gen.sized { size =>
+    for {
+      head <- gen
+      tail <- Gen.resize(size, chainsOf(gen))
+    } yield NonEmptyChain.fromChainPrepend(head, tail)
+  }
 }
 object MUnitCats extends MUnitCats with Assertions

@@ -136,7 +136,7 @@ object MocksManager {
         override def updateMock(mock: MockDefinition): F[Unit] =
           actionsData.replace(mock.name, mock.actions) >>
           routesData.update { routes =>
-            routes.updateBy(mock.name)(_ => mock.name -> mock.route).getOrElse(routes)
+            routes.updateFirstBy(mock.name)(_ => mock.name -> mock.route).getOrElse(routes)
           }
 
         override def addAction(mockName: MockName,
@@ -170,7 +170,7 @@ object MocksManager {
         override def updateAction(mockName: MockName, action: Action): F[Either[ManagerError, Unit]] =
           actionsData
             .updateE[ManagerError](mockName) {
-              _.updateBy(action.name)(_ => action).toRight(ActionNotFound(mockName, action.name))
+              _.updateFirstBy(action.name)(_ => action).toRight(ActionNotFound(mockName, action.name))
             }
             .map(_.getOrElse(MockNotFound(mockName).asLeft))
       }
