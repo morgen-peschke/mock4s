@@ -4,7 +4,6 @@ import io.circe.Json
 import io.circe.syntax._
 import munit.FunSuite
 import peschke.mock4s.MUnitCirce
-import peschke.mock4s.models.Body.HexString
 import peschke.mock4s.predicates.BodyPredicate.{isEmpty, json, raw, text}
 
 class BodyPredicateJsonTest extends FunSuite with MUnitCirce {
@@ -31,8 +30,8 @@ class BodyPredicateJsonTest extends FunSuite with MUnitCirce {
 
   test("RawBody") {
     assertCodec(
-      raw(HexStringPredicate.is(HexString(BigInt(123456)))),
-      Json.obj("raw" := Json.obj("is" := "1e240"))
+      raw(StringPredicate.is("SGVsbG8gV29ybGQK")),
+      Json.obj("raw" := Json.obj("is" := "SGVsbG8gV29ybGQK"))
     )
   }
 }

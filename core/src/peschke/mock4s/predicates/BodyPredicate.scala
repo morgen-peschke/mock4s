@@ -4,6 +4,7 @@ import cats.Eq
 import cats.syntax.all._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
+import peschke.mock4s.models.Body.Base64String
 import peschke.mock4s.models.ParsedBody
 import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators}
 import peschke.mock4s.utils.Circe._
@@ -32,11 +33,11 @@ object BodyPredicate       extends PredicateWrapper[ParsedBody] {
     }
   }
 
-  final case class RawBodyPredicate(p: HexStringPredicate.Type) extends BodyPredicate {
+  final case class RawBodyPredicate(p: StringPredicate.Type) extends BodyPredicate {
     override def test(a: ParsedBody): Boolean = a match {
-      case ParsedBody.JsonBody(_, _, bytes) => p.test(bytes)
-      case ParsedBody.TextBody(_, bytes, _) => p.test(bytes)
-      case ParsedBody.RawBody(bytes, _)     => p.test(bytes)
+      case ParsedBody.JsonBody(_, _, bytes) => p.test(Base64String.raw(bytes))
+      case ParsedBody.TextBody(_, bytes, _) => p.test(Base64String.raw(bytes))
+      case ParsedBody.RawBody(bytes, _)     => p.test(Base64String.raw(bytes))
       case _                                => false
     }
   }
@@ -45,7 +46,7 @@ object BodyPredicate       extends PredicateWrapper[ParsedBody] {
     fixed("empty").as(IsEmpty),
     Decoder[StringPredicate.Type].at("text").map(TextBodyPredicate),
     Decoder[JsonPredicate.Type].at("json").map(JsonBodyPredicate),
-    Decoder[HexStringPredicate.Type].at("raw").map(RawBodyPredicate)
+    Decoder[StringPredicate.Type].at("raw").map(RawBodyPredicate)
   )
 
   implicit val bodyPredicateEncoder: Encoder[BodyPredicate] = Encoder.instance {
@@ -99,7 +100,7 @@ object BodyPredicate       extends PredicateWrapper[ParsedBody] {
     )
   }
 
-  def raw(p: HexStringPredicate.Type): Type = wrap {
+  def raw(p: StringPredicate.Type): Type = wrap {
     lhs[Base, UsingCombinators[ParsedBody, Base]](
       rhs[Fixed[ParsedBody], BodyPredicate](RawBodyPredicate(p))
     )

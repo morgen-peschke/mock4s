@@ -7,37 +7,45 @@ import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import io.circe.syntax._
 import peschke.mock4s.utils.Circe._
 
+import java.nio.charset.Charset
+import java.util.Base64
+
 sealed abstract class Body
 object Body {
   final case object Empty                      extends Body
   final case class TextBody(text: String)      extends Body
   final case class JsonBody(json: Json)        extends Body
-  final case class Bytes(hexString: HexString) extends Body
+  final case class Bytes(hexString: Base64String) extends Body
 
-  object HexString extends supertagged.NewType[BigInt] {
-    def of(bytes: Vector[Byte]): HexString = apply(BigInt(bytes.toArray))
+  object Base64String extends supertagged.NewType[String] {
+    private val base64encoder: Base64.Encoder = Base64.getEncoder
+    private val base64decoder: Base64.Decoder = Base64.getDecoder
+    private val utf8 = Charset.forName("UTF-8")
+
+    def of(bytes: Vector[Byte]): Base64String =
+      apply(new String(base64encoder.encode(bytes.toArray), utf8))
 
     implicit val decoder: Decoder[Type] = accumulatingDecoder { c =>
       c.asAcc[String]
         .andThen { raw =>
           Validated
-            .catchOnly[NumberFormatException](BigInt(raw, 16))
-            .leftMap(_ => DecodingFailure("Expected hex digits (no leading '0x')", c.history).pure[NonEmptyList])
+            .catchOnly[IllegalArgumentException](base64decoder.decode(raw.getBytes(utf8)))
+            .bimap(
+              _ => DecodingFailure("Expected base64 encoded bytes", c.history).pure[NonEmptyList],
+              _ => apply(raw)
+            )
         }
-        .map(apply(_))
     }
-    implicit val encoder: Encoder[Type] = Encoder[String].contramap { hs =>
-      raw(hs).toString(16)
-    }
+    implicit val encoder: Encoder[Type] = Encoder[String].contramap(raw)
     implicit val order: Order[Type] = Order.by(raw)
   }
-  type HexString = HexString.Type
+  type Base64String = Base64String.Type
 
   implicit val decoder: Decoder[Body] = anyOf[Body](
     fixed(true).as(Empty).at("empty").widen,
     accumulatingDecoder(_.asAcc[String].map(TextBody)).at("text").widen,
     accumulatingDecoder(_.asAcc[Json].map(JsonBody)).at("json").widen,
-    accumulatingDecoder(_.asAcc[HexString].map(Bytes)).at("bytes").widen
+    accumulatingDecoder(_.asAcc[Base64String].map(Bytes)).at("bytes").widen
   )
 
   implicit val encoder: Encoder[Body] = Encoder.instance {

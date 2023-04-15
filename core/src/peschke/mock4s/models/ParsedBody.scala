@@ -2,15 +2,15 @@ package peschke.mock4s.models
 
 import io.circe.syntax._
 import io.circe.{Encoder, Json}
-import peschke.mock4s.models.Body.HexString
+import peschke.mock4s.models.Body.Base64String
 
 sealed trait ParsedBody
 object ParsedBody {
-  case object EmptyBody                                                      extends ParsedBody
-  final case class JsonBody(json: Json, text: String, hex: HexString)        extends ParsedBody
-  final case class TextBody(text: String, hex: HexString, jsonError: String) extends ParsedBody
-  final case class RawBody(raw: HexString, textError: String)                extends ParsedBody
-  final case class CouldNotDecode(error: String)                             extends ParsedBody
+  case object EmptyBody                                                         extends ParsedBody
+  final case class JsonBody(json: Json, text: String, hex: Base64String)        extends ParsedBody
+  final case class TextBody(text: String, hex: Base64String, jsonError: String) extends ParsedBody
+  final case class RawBody(raw: Base64String, textError: String)                extends ParsedBody
+  final case class CouldNotDecode(error: String)                                extends ParsedBody
 
   implicit val encoder: Encoder[ParsedBody] = Encoder.instance {
     case EmptyBody                 => "empty".asJson

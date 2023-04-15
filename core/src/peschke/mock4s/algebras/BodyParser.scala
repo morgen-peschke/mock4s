@@ -3,7 +3,7 @@ package peschke.mock4s.algebras
 import cats.effect.kernel.Concurrent
 import cats.syntax.all._
 import org.http4s.Request
-import peschke.mock4s.models.Body.HexString
+import peschke.mock4s.models.Body.Base64String
 import peschke.mock4s.models.ParsedBody
 
 trait BodyParser[F[_]] {
@@ -23,7 +23,7 @@ object BodyParser      {
           else bytes.asRight[ParsedBody]
         }
 
-    def decodeText(bytes: Vector[Byte]): F[Either[ParsedBody, (String, HexString)]] =
+    def decodeText(bytes: Vector[Byte]): F[Either[ParsedBody, (String, Base64String)]] =
       if (bytes.isEmpty) ParsedBody.EmptyBody.asLeft.pure[F].widen
       else
         fs2
@@ -34,14 +34,14 @@ object BodyParser      {
           .string
           .attempt
           .map { result =>
-            val hexString = HexString.of(bytes)
+            val hexString = Base64String.of(bytes)
             result.bimap(
-              e => ParsedBody.RawBody(HexString.of(bytes), e.getMessage),
+              e => ParsedBody.RawBody(Base64String.of(bytes), e.getMessage),
               _ -> hexString
             )
           }
 
-    def decodeJson(text: (String, HexString)): F[Either[ParsedBody, ParsedBody.JsonBody]] =
+    def decodeJson(text: (String, Base64String)): F[Either[ParsedBody, ParsedBody.JsonBody]] =
       io.circe.parser.parse(text._1)
         .bimap(
           pf => ParsedBody.TextBody(text._1, text._2, pf.show),
