@@ -113,7 +113,9 @@ object Predicate   {
     }
   }
 
-  sealed trait Fixed[A] extends Predicate[A]
+  sealed trait Fixed[A] extends Predicate[A] {
+    def fixed: Fixed[A] = this
+  }
 
   object Fixed {
     final case class Always[A]() extends Fixed[A] {
@@ -159,7 +161,9 @@ object Predicate   {
     }
   }
 
-  sealed abstract class UsingEq[A] extends Predicate[A]
+  sealed abstract class UsingEq[A] extends Predicate[A] {
+    def usingEq: UsingEq[A] = this
+  }
 
   object UsingEq {
     final case class Is[A: Eq](sentinel: A) extends UsingEq[A] {

@@ -11,13 +11,14 @@ trait RequestParser[F[_]] {
 object RequestParser      {
   def apply[F[_]](implicit RP: RequestParser[F]): RP.type = RP
 
-  def default[F[_]: Concurrent: BodyParser]: RequestParser[F] =
+  def default[F[_]: Concurrent: BodyParser: StateManager]: RequestParser[F] =
     request =>
-      BodyParser[F].parse(request).map { body =>
-        ParsedRequest(
-          ParsedRequest.Route(request.method, request.uri.path, request.uri.query),
-          request.headers.headers,
-          body
-        )
+      (BodyParser[F].parse(request), StateManager[F].retrieve).tupled.map {
+        case (body, state) =>
+          ParsedRequest(
+            ParsedRequest.Route(request.method, request.uri.path, request.uri.query, state),
+            request.headers.headers,
+            body
+          )
       }
 }

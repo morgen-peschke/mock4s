@@ -6,12 +6,14 @@ import munit._
 import org.http4s.Method
 import org.typelevel.ci._
 import peschke.mock4s.MUnitCirce
+import peschke.mock4s.models.MockState
+import peschke.mock4s.predicates.RequestPredicate.{body, route, state}
 import peschke.mock4s.predicates.RoutePredicate.MethodPredicate
 
 class RequestPredicateJsonTest extends FunSuite with MUnitCirce {
   test("WhenRoute") {
     assertCodec(
-      RequestPredicate.route(RoutePredicate.method(MethodPredicate.is(Method.PATCH))),
+      route(RoutePredicate.method(MethodPredicate.is(Method.PATCH))),
       Json.obj("route" := Json.obj("method" := Json.obj("is" := "PATCH")))
     )
   }
@@ -41,8 +43,15 @@ class RequestPredicateJsonTest extends FunSuite with MUnitCirce {
 
   test("WhenBody") {
     assertCodec(
-      RequestPredicate.body(BodyPredicate.isEmpty),
+      body(BodyPredicate.isEmpty),
       Json.obj("body" := "empty")
+    )
+  }
+
+  test("WhenState") {
+    assertCodec(
+      state(StatePredicate.isCleared(MockState.Key("state-key"))),
+      Json.obj("state" := Json.obj("cleared" := "state-key"))
     )
   }
 }

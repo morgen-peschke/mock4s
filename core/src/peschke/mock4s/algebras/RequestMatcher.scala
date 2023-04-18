@@ -26,22 +26,22 @@ object RequestMatcher      {
           mocks.find(_._2.test(parsedRequest.route)) match {
             case None => logger.warn("Unable to find matching mock definition").as(none[MockName])
             case Some((mockName, _)) =>
-              logger.info(s"Matched mock definition: $mockName").as(mockName.some)
+              logger.info(show"Matched mock definition: $mockName").as(mockName.some)
           }
         }
       }
 
       private def findAction(actions: Chain[Action], parsedRequest: ParsedRequest): F[Option[Action]] =
         actions.find(_.when.test(parsedRequest)) match {
-          case a @ Some(action) => logger.info(s"Found action: ${action.name}").as(a)
+          case a @ Some(action) => logger.info(show"Found action: ${action.name}").as(a)
           case None             => logger.warn("Unable to find matching action").as(none[Action])
         }
 
       private def notFound(request: Request[F], parsedRequest: ParsedRequest): ResponseDef =
         ResponseDef(
           Status.NotFound,
-          request.httpVersion,
-          Nil,
+          request.httpVersion.some,
+          None,
           Body.JsonBody(
             Json.obj(
               "error" := "Not Found",
@@ -53,7 +53,8 @@ object RequestMatcher      {
                 "body"    := parsedRequest.body
               )
             )
-          )
+          ),
+          None
         )
 
       override def findResponse(request: Request[F]): F[ResponseDef] =

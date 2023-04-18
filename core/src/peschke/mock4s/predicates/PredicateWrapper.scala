@@ -46,6 +46,19 @@ trait PredicateWrapper[T] { self =>
   implicit lazy val encoder: Encoder[Type] = combinedEncoder.contramap(unwrap)
 
   implicit def eq(implicit C: Eq[Combined]): Eq[Type] = Eq.by(unwrap)
+
+  implicit final class LiftOps[P <: Predicate[T]](private val p: P) {
+    def lhs[R <: Predicate[T]]: P |+| R = self.lhs(p)
+    def rhs[L <: Predicate[T]]: L |+| P = self.rhs(p)
+  }
+
+  implicit final class WrapOps(private val c: Combined) {
+    def wrapped: Type = self.wrap(c)
+  }
+
+  implicit final class UnwrapOps(private val t: Type) {
+    def unwrapped: Combined = self.unwrap(t)
+  }
 }
 object PredicateWrapper   {
   sealed abstract class Or[T, L <: Predicate[T], R <: Predicate[T]] extends Predicate[T] {

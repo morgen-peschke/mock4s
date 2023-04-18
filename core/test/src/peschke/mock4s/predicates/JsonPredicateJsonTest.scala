@@ -13,10 +13,10 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
   test("Always (no path)") {
     assertCodec(
       JsonPredicate.always,
-      Json.obj("when" := "any")
+      "any".asJson
     )
     assertDecodes(
-      Json.obj("when" := "always"),
+      "always".asJson,
       JsonPredicate.always
     )
   }
@@ -41,10 +41,10 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
   test("Never (no path)") {
     assertCodec(
       JsonPredicate.never,
-      Json.obj("when" := "fail")
+      "fail".asJson
     )
     assertDecodes(
-      Json.obj("when" := "never"),
+      "never".asJson,
       JsonPredicate.never
     )
   }
@@ -69,7 +69,7 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
   test("Is (no path)") {
     assertCodec(
       JsonPredicate.is(5.asJson),
-      Json.obj("when" := Json.obj("is" := 5))
+      Json.obj("is" := 5)
     )
   }
 
@@ -86,7 +86,7 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
   test("In (no path)") {
     assertCodec(
       JsonPredicate.in(5.asJson :: 6.asJson :: Nil),
-      Json.obj("when" := Json.obj("in" := Json.arr(5.asJson, 6.asJson)))
+      Json.obj("in" := Json.arr(5.asJson, 6.asJson))
     )
   }
 
@@ -103,7 +103,7 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
   test("Not (no path)") {
     assertCodec(
       JsonPredicate.not(JsonPredicate.is(5.asJson)),
-      Json.obj("!" := Json.obj("when" := Json.obj("is" := 5)))
+      Json.obj("!" := Json.obj("is" := 5))
     )
   }
 

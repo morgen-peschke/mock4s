@@ -31,8 +31,6 @@ trait DataStore[F[_], K, V] {
 }
 
 object DataStore {
-
-
   def empty[F[_] : Sync, K, V]: F[DataStore[F, K, V]] = init[F,K,V](Chain.empty)
 
   def init[F[_]: Sync, K, V](values: Chain[(K, Chain[V])]): F[DataStore[F, K, V]] =

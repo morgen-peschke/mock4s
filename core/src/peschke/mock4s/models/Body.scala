@@ -1,6 +1,6 @@
 package peschke.mock4s.models
 
-import cats.Order
+import cats.{Eq, Order}
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.all._
 import io.circe.{Decoder, DecodingFailure, Encoder, Json}
@@ -42,7 +42,7 @@ object Body {
   type Base64String = Base64String.Type
 
   implicit val decoder: Decoder[Body] = anyOf[Body](
-    fixed(true).as(Empty).at("empty").widen,
+    fixed("empty").as(Empty).widen,
     accumulatingDecoder(_.asAcc[String].map(TextBody)).at("text").widen,
     accumulatingDecoder(_.asAcc[Json].map(JsonBody)).at("json").widen,
     accumulatingDecoder(_.asAcc[Base64String].map(Bytes)).at("bytes").widen
@@ -53,5 +53,13 @@ object Body {
     case TextBody(value)  => Json.obj("text" := value)
     case JsonBody(value)  => Json.obj("json" -> value)
     case Bytes(hexString) => Json.obj("bytes" := hexString)
+  }
+
+  implicit val eq: Eq[Body] = Eq.instance {
+    case (Empty, Empty) => true
+    case (TextBody(a), TextBody(b)) => a === b
+    case (JsonBody(a), JsonBody(b)) => a === b
+    case (Bytes(a), Bytes(b)) => a === b
+    case _ => false
   }
 }

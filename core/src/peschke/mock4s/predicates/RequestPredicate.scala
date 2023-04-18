@@ -9,7 +9,9 @@ import peschke.mock4s.predicates
 import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators}
 import peschke.mock4s.utils.Circe._
 
-sealed trait RequestPredicate extends Predicate[ParsedRequest]
+sealed trait RequestPredicate extends Predicate[ParsedRequest] {
+  def requestPredicate: RequestPredicate = this
+}
 object RequestPredicate       extends PredicateWrapper[ParsedRequest] {
 
   final case class WhenRoute(p: RoutePredicate.Type) extends RequestPredicate {
@@ -24,22 +26,29 @@ object RequestPredicate       extends PredicateWrapper[ParsedRequest] {
     override def test(a: ParsedRequest): Boolean = p.test(a.body)
   }
 
+  final case class WhenState(p: StatePredicate.Type) extends RequestPredicate {
+    override def test(a: ParsedRequest): Boolean = p.test(a.route.state)
+  }
+
   implicit val requestPredicateDecoder: Decoder[RequestPredicate] = anyOf[RequestPredicate](
     Decoder[RoutePredicate.Type].at("route").map(WhenRoute),
     Decoder[List[HeaderPredicate.Type]].at("headers").map(WhenHeaders),
-    Decoder[BodyPredicate.Type].at("body").map(WhenBody)
+    Decoder[BodyPredicate.Type].at("body").map(WhenBody),
+    Decoder[StatePredicate.Type].at("state").map(WhenState)
   )
 
   implicit val requestPredicateEncoder: Encoder[RequestPredicate] = Encoder.instance {
     case WhenRoute(p)    => Json.obj("route" := p)
     case WhenHeaders(px) => Json.obj("headers" := px)
     case WhenBody(p)     => Json.obj("body" := p)
+    case WhenState(p)    => Json.obj("state" := p)
   }
 
   implicit val requestPredicateEq: Eq[RequestPredicate] = Eq.instance {
     case (WhenRoute(a), WhenRoute(b))     => a === b
     case (WhenHeaders(a), WhenHeaders(b)) => a === b
     case (WhenBody(a), WhenBody(b))       => a === b
+    case (WhenState(a), WhenState(b))     => a === b
     case _                                => false
   }
 
@@ -77,4 +86,11 @@ object RequestPredicate       extends PredicateWrapper[ParsedRequest] {
       rhs[Fixed[ParsedRequest], RequestPredicate](WhenBody(p))
     )
   }
+
+  def state(p: StatePredicate.Type): Type =
+    WhenState(p)
+      .requestPredicate
+      .rhs[Fixed[ParsedRequest]]
+      .lhs[UsingCombinators[ParsedRequest, Base]]
+      .wrapped
 }

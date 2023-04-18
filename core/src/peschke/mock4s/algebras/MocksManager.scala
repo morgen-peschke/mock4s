@@ -8,8 +8,8 @@ import cats.syntax.all._
 import io.circe.Decoder
 import peschke.mock4s.algebras.MocksManager.ManagerError.{ActionNotFound, DuplicateActionFound, DuplicateMockFound, MockNotFound}
 import peschke.mock4s.algebras.MocksManager.{InsertLocation, ManagerError}
+import peschke.mock4s.models.MockDefinition
 import peschke.mock4s.models.MockDefinition.{Action, ActionName, MockName}
-import peschke.mock4s.models.{MockDefinition, Settings}
 import peschke.mock4s.predicates
 import peschke.mock4s.predicates.RoutePredicate
 import peschke.mock4s.utils.ChainUtils._
@@ -67,10 +67,10 @@ object MocksManager {
     implicit val show: Show[ManagerError] = Show.fromToString
   }
 
-  def initialize[F[_]: Sync](settings: Settings): F[MocksManager[F]] = {
-    val routesDataF = Ref[F].of(settings.mocks.map(m => m.name -> m.route))
+  def initialize[F[_]: Sync](initialMocks: Chain[MockDefinition]): F[MocksManager[F]] = {
+    val routesDataF = Ref[F].of(initialMocks.map(m => m.name -> m.route))
     val actionsDataF = DataStore.init[F, MockName, Action](
-      settings.mocks.map(m => m.name -> m.actions)
+      initialMocks.map(m => m.name -> m.actions)
     )
 
     (routesDataF, actionsDataF).mapN { (routesData, actionsData) =>

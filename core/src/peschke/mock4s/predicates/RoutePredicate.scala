@@ -9,7 +9,9 @@ import peschke.mock4s.models.ParsedRequest.Route
 import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators, UsingEq}
 import peschke.mock4s.utils.Circe._
 
-sealed trait RoutePredicate extends Predicate[Route]
+sealed trait RoutePredicate extends Predicate[Route] {
+  def routePredicate: RoutePredicate = this
+}
 object RoutePredicate       extends PredicateWrapper[Route] {
   object MethodPredicate extends Predicate.SimpleEq[Method]
   object QueryPredicate  extends Predicate.SimpleEq[Query]
@@ -26,22 +28,29 @@ object RoutePredicate       extends PredicateWrapper[Route] {
     override def test(a: Route): Boolean = predicate.test(a.query)
   }
 
+  final case class WhenState(p: StatePredicate.Type) extends RoutePredicate {
+    override def test(a: Route): Boolean = p.test(a.state)
+  }
+
   implicit val routePredicateDecoder: Decoder[RoutePredicate] = anyOf[RoutePredicate](
     Decoder[MethodPredicate.Type].at("method").map(WhenMethod),
     Decoder[PathPredicate.Type].at("path").map(WhenPath),
-    Decoder[QueryPredicate.Type].at("query").map(WhenQuery)
+    Decoder[QueryPredicate.Type].at("query").map(WhenQuery),
+    Decoder[StatePredicate.Type].at("state").map(WhenState)
   )
 
   implicit val routePredicateEncoder: Encoder[RoutePredicate] = Encoder.instance {
     case WhenMethod(predicate) => Json.obj("method" := predicate)
     case WhenPath(predicate)   => Json.obj("path" := predicate)
     case WhenQuery(predicate)  => Json.obj("query" := predicate)
+    case WhenState(predicate)  => Json.obj("state" := predicate)
   }
 
   implicit val routePredicateEq: Eq[RoutePredicate] = Eq.instance {
     case (WhenMethod(a), WhenMethod(b)) => a === b
     case (WhenPath(a), WhenPath(b))     => a === b
     case (WhenQuery(a), WhenQuery(b))   => a === b
+    case (WhenState(a), WhenState(b))   => a === b
     case _                              => false
   }
 
@@ -99,4 +108,11 @@ object RoutePredicate       extends PredicateWrapper[Route] {
       rhs[Fixed[Route] |+| UsingEq[Route], RoutePredicate](WhenQuery(p))
     )
   }
+
+  def state(p: StatePredicate.Type): Type =
+    WhenState(p)
+      .routePredicate
+      .rhs[Fixed[Route] |+| UsingEq[Route]]
+      .lhs[UsingCombinators[Route, Base]]
+      .wrapped
 }

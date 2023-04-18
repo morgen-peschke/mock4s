@@ -2,13 +2,16 @@ package peschke.mock4s.utils
 
 import cats.data.{Chain, NonEmptyChain, Validated}
 import cats.syntax.all._
-import cats.{Defer, Eq, Semigroup}
+import cats.{Defer, Eq, Order, PartialOrder, Semigroup}
 import io.circe.Decoder.{AccumulatingResult, Result}
 import io.circe._
 import io.circe.syntax._
 import org.http4s.Uri.Path
 import org.http4s._
 import org.typelevel.ci.CIString
+import peschke.mock4s.utils.Orphans._
+
+import scala.annotation.nowarn
 
 object Circe {
   def accumulatingDecoder[A](f: ACursor => AccumulatingResult[A]): Decoder[A] = new Decoder[A] {
@@ -60,6 +63,88 @@ object Circe {
     override def defer[A](fa: => Encoder[A]): Encoder[A] = DeferredEncoder(() => fa)
   }
 
+  implicit val jsonOrder: PartialOrder[Json] =
+    Defer[PartialOrder].fix[Json] { recurse =>
+      val booleanPA = PartialOrder[Boolean]
+      val bigDecPA = PartialOrder[BigDecimal]
+      val stringPA = PartialOrder[String]
+      val vectorPA = cats.instances.vector.catsKernelStdPartialOrderForVector(recurse)
+      val fieldsPA = cats
+        .instances.vector.catsKernelStdPartialOrderForVector(
+        cats.instances.tuple.catsKernelStdPartialOrderForTuple2(stringPA, recurse)
+      )
+      val objectPA = PartialOrder.from[JsonObject] { (a, b) =>
+        fieldsPA.partialCompare(a.toVector.sortBy(_._1), b.toVector.sortBy(_._1))
+      }
+
+      @nowarn
+      def notComparable[A](a: A): Double = Double.NaN
+
+      PartialOrder.from { (lhs, rhs) =>
+        lhs.fold(
+          jsonNull = lhs.fold(
+            jsonNull = 0.0,
+            jsonBoolean = notComparable(_),
+            jsonNumber = notComparable(_),
+            jsonString = notComparable(_),
+            jsonArray = notComparable(_),
+            jsonObject = notComparable(_)
+          ),
+          jsonBoolean = a =>
+            rhs.fold(
+              jsonNull = Double.NaN,
+              jsonBoolean = b => booleanPA.partialCompare(a, b),
+              jsonNumber = notComparable(_),
+              jsonString = notComparable(_),
+              jsonArray = notComparable(_),
+              jsonObject = notComparable(_)
+            ),
+          jsonNumber = a =>
+            rhs.fold(
+              jsonNull = Double.NaN,
+              jsonBoolean = notComparable(_),
+              jsonNumber = b =>
+                bigDecPA.partialCompare(
+                  a.toBigDecimal.getOrElse(BigDecimal.valueOf(a.toDouble)),
+                  b.toBigDecimal.getOrElse(BigDecimal.valueOf(b.toDouble))
+                ),
+              jsonString = notComparable(_),
+              jsonArray = notComparable(_),
+              jsonObject = notComparable(_)
+            ),
+          jsonString = a =>
+            rhs.fold(
+              jsonNull = Double.NaN,
+              jsonBoolean = notComparable(_),
+              jsonNumber = notComparable(_),
+              jsonString = b => stringPA.partialCompare(a, b),
+              jsonArray = notComparable(_),
+              jsonObject = notComparable(_)
+            ),
+          jsonArray = a =>
+            rhs.fold(
+              jsonNull = Double.NaN,
+              jsonBoolean = notComparable(_),
+              jsonNumber = notComparable(_),
+              jsonString = notComparable(_),
+              jsonArray = b => vectorPA.partialCompare(a, b),
+              jsonObject = notComparable(_)
+            ),
+          jsonObject = a =>
+            rhs.fold(
+              jsonNull = Double.NaN,
+              jsonBoolean = notComparable(_),
+              jsonNumber = notComparable(_),
+              jsonString = notComparable(_),
+              jsonArray = notComparable(_),
+              jsonObject = b => objectPA.partialCompare(a, b)
+            )
+        )
+      }
+    }
+
+  implicit val decodingFailureOrder: Order[DecodingFailure] = Order.by(_.show)
+
   implicit def decoderSemigroup[A]: Semigroup[Decoder[A]] =
     Semigroup.instance { (lhs, rhs) =>
       new Decoder[A] {
@@ -72,9 +157,10 @@ object Circe {
           tryDecodeAccumulating(c)
 
         override def tryDecodeAccumulating(c: ACursor): AccumulatingResult[A] =
-          lhs.tryDecodeAccumulating(c).recoverWith { case lhsFailure =>
-            rhs.tryDecodeAccumulating(c).leftMap(lhsFailure.concatNel)
-          }
+          lhs.tryDecodeAccumulating(c)
+            .findValid(rhs.tryDecodeAccumulating(c))
+            .leftMap(_.distinct)
+
       }
     }
 

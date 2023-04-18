@@ -34,7 +34,10 @@ object MockDefinition {
   }
   type ActionName = ActionName.Type
 
-  final case class Action(name: ActionName, when: RequestPredicate.Type, respondWith: ResponseDef)
+  final case class Action(name: ActionName,
+                          when: RequestPredicate.Type,
+                          respondWith: ResponseDef,
+                         )
 
   implicit val actionDecoder: Decoder[Action] = accumulatingDecoder { c =>
     (
@@ -43,6 +46,7 @@ object MockDefinition {
       c.downField("respond-with").asAcc[ResponseDef]
     ).mapN(Action.apply)
   }
+
   implicit val actionEncoder: Encoder[Action] = Encoder.instance { a =>
     Json.obj(
       "name"         := a.name,
@@ -51,12 +55,17 @@ object MockDefinition {
     )
   }
 
+  implicit val actionEq: Eq[Action] = Eq.instance { (a,b) =>
+    a.name === b.name && a.when === b.when && a.respondWith === b.respondWith
+  }
+
   implicit val decoder: Decoder[MockDefinition] = accumulatingDecoder { c =>
     val actionsC = c.downField("actions")
     (
       c.downField("name").asAcc[MockName],
       c.downField("route").asAcc[RoutePredicate.Type],
-      actionsC.asAcc[Chain[Action]]
+      actionsC
+        .asAcc[Chain[Action]]
         .map {
           _.mapWithIndex { (action, index) =>
             if (action.name =!= ActionName.Empty) action -> index

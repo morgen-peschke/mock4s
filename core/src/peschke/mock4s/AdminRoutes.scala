@@ -8,13 +8,13 @@ import org.http4s._
 import org.http4s.circe.CirceEntityDecoder.circeEntityDecoder
 import org.http4s.circe.CirceEntityEncoder.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
-import peschke.mock4s.algebras.MocksManager
+import peschke.mock4s.algebras.{MocksManager, StateManager}
 import peschke.mock4s.algebras.MocksManager.{InsertLocation, ManagerError}
-import peschke.mock4s.models.MockDefinition
+import peschke.mock4s.models.{MockDefinition, MockState}
 import peschke.mock4s.models.MockDefinition.{Action, ActionName, MockName}
 import peschke.mock4s.utils.Circe._
 
-object SettingsRoutes {
+object AdminRoutes {
 
   final case class AddMock(mock: MockDefinition, at: InsertLocation[MockName])
   final case class AddAction(action: Action, at: InsertLocation[ActionName])
@@ -34,7 +34,7 @@ object SettingsRoutes {
   }
 
 
-  def default[F[_]: Concurrent: MocksManager](endpointRoot: Uri.Path): HttpRoutes[F] = {
+  def default[F[_]: Concurrent: MocksManager: StateManager](endpointRoot: Uri.Path): HttpRoutes[F] = {
     val dsl = new Http4sDsl[F] {}
     import dsl._
     val RootPath = endpointRoot
@@ -99,6 +99,23 @@ object SettingsRoutes {
         MocksManager[F]
           .deleteAction(mockName, actionName)
           .flatMap(_ => Ok(Json.obj("deleted" := actionName)))
+
+      case GET -> RootPath / "state" => StateManager[F].retrieve.flatMap(Ok(_))
+
+      case GET -> RootPath / "state" / key =>
+        StateManager[F].get(MockState.Key(key)).flatMap(Ok(_))
+
+      case req @  POST -> RootPath / "state" / key =>
+        req.as[Json]
+          .flatMap(StateManager[F].update(MockState.Key(key), _))
+          .flatMap(_ => Accepted())
+
+      case DELETE -> RootPath / "state" / key =>
+        StateManager[F]
+          .clear(MockState.Key(key))
+          .flatMap(_ => Accepted())
+
+      case DELETE -> RootPath / "state" => StateManager[F].reset.flatMap(_ => Accepted())
     }
   }
 }

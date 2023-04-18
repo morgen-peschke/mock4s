@@ -24,7 +24,7 @@ class BodyPredicateJsonTest extends FunSuite with MUnitCirce {
   test("JsonBody") {
     assertCodec(
       json(JsonPredicate.is(Json.obj("arbitrary json" := true))),
-      Json.obj("json" := Json.obj("when" := Json.obj("is" := Json.obj("arbitrary json" := true))))
+      Json.obj("json" := Json.obj("is" := Json.obj("arbitrary json" := true)))
     )
   }
 
