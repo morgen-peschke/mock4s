@@ -18,10 +18,13 @@ object StateUpdater {
 
     override def transition(st: StateTransition): F[Unit] =
       st match {
-        case StateTransition.Clear(key) =>
-          StateManager[F].clear(key) >> logger.info(show"State $key cleared")
-        case StateTransition.Set(key, value) =>
-          StateManager[F].update(key, value) >> logger.info(show"State $key updated to $value")
+        case StateTransition.Clear(keys) =>
+          keys.traverse(StateManager[F].clear) >> logger.info(show"State cleared: $keys")
+        case StateTransition.Set(entries) =>
+          entries.foldMapM {
+            case (key, value) =>
+              StateManager[F].update(key, value) >> logger.info(show"State $key updated to $value")
+          }
       }
 
     override def run(transitions: List[StateTransition]): F[Unit] =

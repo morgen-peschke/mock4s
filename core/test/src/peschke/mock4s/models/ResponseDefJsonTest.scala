@@ -1,5 +1,6 @@
 package peschke.mock4s.models
 
+import cats.data.Chain
 import cats.syntax.all._
 import io.circe.Json
 import io.circe.syntax._
@@ -19,7 +20,7 @@ class ResponseDefJsonTest extends FunSuite with MUnitCirce {
         ).some,
         body = Body.JsonBody(Json.obj("in-body" := Json.Null)),
         updateStateOpt = List(
-          StateTransition.Set(MockState.Key("state-key"), Json.Null)
+          StateTransition.Set(Chain.one(MockState.Key("state-key") -> Json.Null))
         ).some
       ),
       Json.obj(
@@ -30,7 +31,7 @@ class ResponseDefJsonTest extends FunSuite with MUnitCirce {
         ),
         "body" := Json.obj("json" := Json.obj("in-body" := Json.Null)),
         "state-updates" := Json.arr(
-          Json.obj("set" := Json.obj("key":= "state-key", "value" := Json.Null))
+          Json.obj("set" := Json.obj("state-key" := Json.Null))
         )
       )
     )
@@ -46,7 +47,7 @@ class ResponseDefJsonTest extends FunSuite with MUnitCirce {
         ).some,
         body = Body.JsonBody(Json.obj("in-body" := Json.Null)),
         updateStateOpt = List(
-          StateTransition.Set(MockState.Key("state-key"), Json.Null)
+          StateTransition.Set(Chain.one(MockState.Key("state-key") -> Json.Null))
         ).some
       ),
       Json.obj(
@@ -56,7 +57,7 @@ class ResponseDefJsonTest extends FunSuite with MUnitCirce {
         ),
         "body" := Json.obj("json" := Json.obj("in-body" := Json.Null)),
         "state-updates" := Json.arr(
-          Json.obj("set" := Json.obj("key":= "state-key", "value" := Json.Null))
+          Json.obj("set" := Json.obj("state-key" := Json.Null))
         )
       )
     )
@@ -70,14 +71,14 @@ class ResponseDefJsonTest extends FunSuite with MUnitCirce {
         headersOpt = none,
         body = Body.JsonBody(Json.obj("in-body" := Json.Null)),
         updateStateOpt = List(
-          StateTransition.Set(MockState.Key("state-key"), Json.Null)
+          StateTransition.Set(Chain.one(MockState.Key("state-key") -> Json.Null))
         ).some
       ),
       Json.obj(
         "status" := 200,
         "body" := Json.obj("json" := Json.obj("in-body" := Json.Null)),
         "state-updates" := Json.arr(
-          Json.obj("set" := Json.obj("key":= "state-key", "value" := Json.Null))
+          Json.obj("set" := Json.obj("state-key" := Json.Null))
         )
       )
     )
