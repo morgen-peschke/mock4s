@@ -133,25 +133,34 @@ JNULL             := 'null'
 JNUMBER           := valid JSON number
 JNUMBER..JNUMBER  := valid JSON number with a restricted range
 JNUMBER.MAX       := maximum JSON number
+JKEY              := valid key for a JSON object
 
 JSTRING           := valid JSON string
 CI_STRING         := valid JSON string, treated as case-insensitive
 BARE_STRING       := valid JSON string, just without the enclosing double-quotes
 REGEX             := valid JSON string, containing a valid regular expression
-
-HEX_CHAR          := 0-9 | A-Z | a-z
-HEX_BARE          := HEX_CHAR [ | HEX_STRING ]
-HEX_STRING        := '"' [HEX_BARE] '"'
+ 
+BASE64_BARE          := See https://datatracker.ietf.org/doc/html/rfc4648#section-4
+BASE64_STRING        := '"' [BASE64_BARE] '"'
 
 JSON              := any valid JSON
-[ELEM...]         := json array of values defined by ELEM
-{ "key": VALUE }  := json object with key "key" and value defined by VALUE
+[ELEM...]         := JSON array of any number of values defined by ELEM
+{ JKEY: VALUE }   := JSON object with key defined by KEY and value defined by VALUE
+{ KEY_VALUE... }  := JSON object with any number of key/value pairs defined by KEY_VALUE
 DEFINITION(param) := parameterized route (to avoid a bunch of repetition)
 ```
 
 #### Settings Schema :: `SETTINGS`
 ```
-SETTINGS := [MOCK...]
+MOCKS_ONLY := [MOCK...]
+MOCKS_AND_STATE := { "mocks": MOCKS_ONLY, "state": STATE }
+SETTINGS := MOCKS_ONLY | MOCKS_AND_STATE
+```
+
+#### State Schema :: `STATE`
+```
+STATE_ENTRY := JKEY: JSON
+STATE := { KEY_VALUE... }
 ```
 
 #### Mocks Schema :: `MOCK`
@@ -206,14 +215,22 @@ STRING_PREDICATE := FIXED
 
 #### JSON Predicate Schema :: `JSON_PREDICATE`
 ```
-JSON_TESTS := {
-    [ "path": '"' JSON_PATH '"', ]
-    "when": FIXED 
-          | EQ(io.circe.Json) 
-          | ORDER(io.circe.Json)
+UNPATHED_JSON_TEST := FIXED 
+                    | EQ(io.circe.Json) 
+                    | ORDER(io.circe.Json)
+PATHED_JSON_TEST := { 
+    "path": '"' JSON_PATH '"',
+    "when": UNPATHED_JSON_TEST
 }
+JSON_TESTS := PATHED_JSON_TEST | UNPATHED_JSON_TEST
 
 JSON_PREDICATE := JSON_TESTS | COMBINATORS(JSON_PREDICATE)
+```
+
+#### State Predicate Schema :: `STATE_PREDICATE`
+```
+STATE_PREDICATE := { "cleared": JKEY }
+                 | { "key": JKEY, "value": JSON_PREDICATE }
 ```
 
 #### Route Predicate Schema :: `ROUTE_PREDICATE`
@@ -230,39 +247,47 @@ PATH_PRED := FIXED | EQ(org.http4s.Uri.Path) | SANITIZED_PREDICATE | COMBINATORS
 
 QUERY_PRED :=  FIXED | EQ(org.http4s.Query) | COMBINATORS(QUERY_PRED)
 
-ROUTE_PREDICATE := METHOD_PRED 
-                 | PATH_PRED 
-                 | QUERY_PRED 
+ROUTE_PREDICATE := { "method": METHOD_PRED } 
+                 | { "path": PATH_PRED } 
+                 | { "query": QUERY_PRED } 
+                 | { "state": STATE_PREDICATE }
                  | FIXED 
                  | COMBINATORS(ROUTE_PREDICATE) 
                  | EQ(peschke.mock4s.models.ParsedRequest.Route)
 ```
 
-#### Request Predicate :: `REQUEST_PREDICATE`
+#### Request Predicate Schema :: `REQUEST_PREDICATE`
 ```
-
 HEADER_PREDICATE  := { "name": CI_STRING, "value": STRING_PREDICATE }
-HEADERS_PREDICATE := [HEADER_PREDICATE...]
 
-HEX_STRING_PREDICATE := FIXED | UsingEq(HEX_STRING)
-RAW_BODY_PREDICATE  := { "raw" : HEX_STRING_PREDICATE }
-JSON_BODY_PREDICATE := { "json": JSON_PREDICATE }
-TEXT_BODY_PREDICATE := { "text": STRING_PREDICATE }
+BASE64_STRING_PREDICATE := FIXED | UsingEq(BASE64_BARE)
 
-BODY_PREDICATE := "empty" | TEXT_BODY_PREDICATE | JSON_BODY_PREDICATE | RAW_BODY_PREDICATE
+BODY_PREDICATE := "empty" 
+                | { "text": STRING_PREDICATE } 
+                | { "json": JSON_PREDICATE } 
+                | { "raw" : BASE64_STRING_PREDICATE }
 
-REQUEST_PREDICATE := FIXED | ROUTE_PREDICATE | HEADERS_PREDICATE | BODY_PREDICATE | COMBINATORS(REQUEST_PREDICATE)
+REQUEST_PREDICATE := FIXED 
+                   | { "route": ROUTE_PREDICATE } 
+                   | { "headers": [ HEADER_PREDICATE... ] } 
+                   | { "body": BODY_PREDICATE }
+                   | { "state": STATE_PREDICATE } 
+                   | COMBINATORS(REQUEST_PREDICATE)
 ```
 
-#### Body Definition :: `BODY_DEFINITION`
+#### Body Definition Schema :: `BODY_DEFINITION`
 ```
-HEX_CHAR   := 0-9 | A-Z | a-z
-HEX_STRING := HEX_CHAR [ | HEX_STRING ]
-
 TEXT_BODY := { "text": JSTRING" }
 JSON_BODY := { "json": JSON }
-RAW_BODY  := { "bytes": '"' HEX_STRING '"' }
+RAW_BODY  := { "bytes": BASE64_STRING }
 BODY_DEFINITION := "empty" | TEXT_BODY | JSON_BODY | RAW_BODY
+```
+
+#### State Transition Schema :: `STATE_TRANSITION`
+```
+STATE_ENTRY := JKEY: JSON
+STATE_TRANSITION := { "clear": [JKEY...] }
+                  | { "set": { STATE_ENTRY... } }
 ```
 
 #### Action Schema :: `ACTION`
@@ -279,7 +304,8 @@ HEADER := { "name": JSTRING, "value: JSTRING }
 RESPONSE_DEFINITION := {
   "status": 200..599,
   [ "httpVersion": HTTP_VERSION, ]
-  "headers": [HEADER...],
+  ["headers": [HEADER...],]
+  ["state": [STATE_TRANSITION...],]
   "body": BODY_DEFINITION
 }
 
