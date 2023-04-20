@@ -229,8 +229,9 @@ JSON_PREDICATE := JSON_TESTS | COMBINATORS(JSON_PREDICATE)
 
 #### State Predicate Schema :: `STATE_PREDICATE`
 ```
+STATE_NAME      := JKEY
 STATE_PREDICATE := { "cleared": JKEY }
-                 | { "key": JKEY, "value": JSON_PREDICATE }
+                 | { "set": { STATE_NAME: JSON_PREDICATE }
 ```
 
 #### Route Predicate Schema :: `ROUTE_PREDICATE`
@@ -258,7 +259,8 @@ ROUTE_PREDICATE := { "method": METHOD_PRED }
 
 #### Request Predicate Schema :: `REQUEST_PREDICATE`
 ```
-HEADER_PREDICATE  := { "name": CI_STRING, "value": STRING_PREDICATE }
+HEADER_NAME       := CI_STRING
+HEADER_PREDICATE  := { HEADER_NAME: STRING_PREDICATE }
 
 BASE64_STRING_PREDICATE := FIXED | UsingEq(BASE64_BARE)
 

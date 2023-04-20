@@ -23,17 +23,15 @@ object StatePredicate extends PredicateWrapper[MockState.State] {
 
     implicit val decoder: Decoder[Tests] = anyOf[Tests](
       accumulatingDecoder(_.downField("cleared").asAcc[MockState.Key].map(IsCleared)),
-      accumulatingDecoder { c =>
-        (
-          c.downField("key").asAcc[MockState.Key],
-          c.downField("value").asAcc[JsonPredicate.Type]
-        ).mapN(IsSet)
-      }.widen
+      Decoder[JsonObjectTuple[MockState.Key, JsonPredicate.Type]]
+        .map(jot => IsSet(jot.key, jot.value))
+        .at("set")
+        .widen
     )
 
     implicit val encoder: Encoder[Tests] = Encoder.instance {
       case IsCleared(key) => Json.obj("cleared" := key)
-      case IsSet(key, value) => Json.obj("key" := key, "value" := value)
+      case IsSet(key, value) => Json.obj("set" := JsonObjectTuple(key, value))
     }
 
     implicit val eq: Eq[Tests] = Eq.instance {

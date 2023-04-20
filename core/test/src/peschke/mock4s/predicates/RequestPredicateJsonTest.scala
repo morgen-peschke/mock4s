@@ -28,14 +28,8 @@ class RequestPredicateJsonTest extends FunSuite with MUnitCirce {
       ),
       Json.obj(
         "headers" := Json.arr(
-          Json.obj(
-            "name"  := "h0",
-            "value" := Json.obj("is" := "v0")
-          ),
-          Json.obj(
-            "name"  := "h1",
-            "value" := Json.obj("is" := "v1")
-          )
+          Json.obj("h0" := Json.obj("is" := "v0")),
+          Json.obj("h1" := Json.obj("is" := "v1"))
         )
       )
     )

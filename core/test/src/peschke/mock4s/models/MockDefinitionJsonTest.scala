@@ -5,10 +5,11 @@ import io.circe.Json
 import io.circe.syntax._
 import munit.FunSuite
 import org.http4s.{Method, Status}
+import org.typelevel.ci._
 import peschke.mock4s.MUnitCirce
 import peschke.mock4s.models.MockDefinition.{Action, ActionName}
 import peschke.mock4s.predicates.RoutePredicate.MethodPredicate
-import peschke.mock4s.predicates.{JsonPredicate, RequestPredicate, RoutePredicate, StatePredicate}
+import peschke.mock4s.predicates.{HeaderPredicate, JsonPredicate, RequestPredicate, RoutePredicate, StatePredicate, StringPredicate}
 
 class MockDefinitionJsonTest extends FunSuite with MUnitCirce {
   test("Action codec (simple)") {
@@ -41,7 +42,10 @@ class MockDefinitionJsonTest extends FunSuite with MUnitCirce {
         ActionName("name of action"),
         RequestPredicate.forall(List(
           RequestPredicate.route(RoutePredicate.method(MethodPredicate.is(Method.GET))),
-          RequestPredicate.state(StatePredicate.isSet(MockState.Key("state-key"), JsonPredicate.is(1.asJson)))
+          RequestPredicate.state(StatePredicate.isSet(MockState.Key("state-key"), JsonPredicate.is(1.asJson))),
+          RequestPredicate.headers(List(
+            HeaderPredicate.header(ci"Accept", StringPredicate.is("application/json"))
+          ))
         )),
         ResponseDef(
           status = Status.Ok,
@@ -55,7 +59,10 @@ class MockDefinitionJsonTest extends FunSuite with MUnitCirce {
         "name" := "name of action",
         "when" := Json.obj("forall" := List(
           Json.obj("route" := Json.obj("method" := Json.obj("is" := "GET"))),
-          Json.obj("state" := Json.obj("key" := "state-key", "value" := Json.obj("is" := 1)))
+          Json.obj("state" := Json.obj("set" := Json.obj("state-key" := Json.obj("is" := 1)))),
+          Json.obj("headers" := List(
+            Json.obj("Accept" := Json.obj("is":= "application/json"))
+          ))
         )),
         "respond-with" := Json.obj(
           "status" := 200,

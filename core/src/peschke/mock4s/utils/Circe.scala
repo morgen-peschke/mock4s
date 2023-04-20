@@ -173,6 +173,8 @@ object Circe {
 
   implicit val ciStringDecoder: Decoder[CIString] = Decoder[String].map(CIString(_))
   implicit val ciStringEncoder: Encoder[CIString] = Encoder[String].contramap(_.toString)
+  implicit val ciStringKeyDecoder: KeyDecoder[CIString] = KeyDecoder[String].map(CIString(_))
+  implicit val ciStringKeyEncoder: KeyEncoder[CIString] = KeyEncoder[String].contramap(_.toString)
 
   implicit val methodDecoder: Decoder[Method] = accumulatingDecoder { s =>
     s.asAcc[String].map(_.toUpperCase).andThen { raw =>
@@ -227,6 +229,22 @@ object Circe {
     }
   }
   implicit val queryEncoder: Encoder[Query] = Encoder[String].contramap(_.renderString)
+
+  final case class JsonObjectTuple[A, B](key: A, value: B)
+  object JsonObjectTuple {
+    implicit def decoder[A: KeyDecoder, B: Decoder]: Decoder[JsonObjectTuple[A,B]] = accumulatingDecoder { c =>
+      c.asAcc[Map[A, B]].andThen { map =>
+        map.toList match {
+          case (key, value) :: Nil => JsonObjectTuple(key, value).valid
+          case _ => DecodingFailure("Expected a map with a single key/value pair", c.history).invalidNel
+        }
+      }
+    }
+    implicit def encoder[A: KeyEncoder, B: Encoder]: Encoder[JsonObjectTuple[A, B]] =
+      Encoder.instance[JsonObjectTuple[A,B]] { jot =>
+        Json.obj(KeyEncoder[A].apply(jot.key) -> Encoder[B].apply(jot.value))
+      }
+  }
 
   final case class GeneratedDecoder[A](decoder: Decoder[A])
 

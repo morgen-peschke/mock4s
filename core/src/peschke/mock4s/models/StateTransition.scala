@@ -12,14 +12,14 @@ object StateTransition {
   final case class Set(entries: Chain[(MockState.Key, Json)]) extends StateTransition
 
   implicit val decoder: Decoder[StateTransition] = anyOf[StateTransition](
-    accumulatingDecoder(_.downField("clear").downField("key").asAcc[Chain[MockState.Key]].map(Clear)),
+    accumulatingDecoder(_.downField("clear").asAcc[Chain[MockState.Key]].map(Clear)),
     accumulatingDecoder(_.downField("set").asAcc[Map[MockState.Key, Json]].map { map =>
       Set(Chain.fromSeq(map.toSeq))
     })
   )
 
   implicit val encoder: Encoder[StateTransition] = Encoder.instance {
-    case Clear(keys) => Json.obj("clear" := Json.obj("key" := keys))
+    case Clear(keys) => Json.obj("clear" := keys)
     case Set(entries) => Json.obj("set" := entries.toVector.toMap.asJsonObject)
   }
 

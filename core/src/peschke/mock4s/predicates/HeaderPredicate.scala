@@ -2,8 +2,7 @@ package peschke.mock4s.predicates
 
 import cats.Eq
 import cats.syntax.all._
-import io.circe.syntax._
-import io.circe.{Decoder, Encoder, Json}
+import io.circe.{Decoder, Encoder}
 import org.http4s.Header
 import org.typelevel.ci.CIString
 import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators, UsingEq}
@@ -18,17 +17,11 @@ object HeaderPredicate extends PredicateWrapper[Header.Raw] {
   }
 
   implicit def baseDecoder(implicit predDecoder: Decoder[StringPredicate.Type]): Decoder[BaseHeaderPred] =
-    accumulatingDecoder { c =>
-      (
-        c.downField("name").asAcc[CIString],
-        c.downField("value").asAcc[StringPredicate.Type]
-      ).mapN(BaseHeaderPred.apply)
-    }
+    Decoder[JsonObjectTuple[CIString, StringPredicate.Type]].map(jot => BaseHeaderPred(jot.key, jot.value))
 
   implicit def baseEncoder(implicit predEncoder: Encoder[StringPredicate.Type]): Encoder[BaseHeaderPred] =
-    Encoder.instance { hp =>
-      Json.obj("name" := hp.name, "value" := hp.value)
-    }
+    Encoder[JsonObjectTuple[CIString, StringPredicate.Type]]
+      .contramap[BaseHeaderPred](bhp => JsonObjectTuple(bhp.name, bhp.value))
 
   type Base = BaseHeaderPred |+| Fixed[Header.Raw] |+| UsingEq[Header.Raw]
 

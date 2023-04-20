@@ -23,7 +23,7 @@ class StatePredicateJsonTest extends ScalaCheckSuite with MUnitCirce {
     forAll(Gen.alphaNumStr, JsonGens.scalars.map(JsonPredicate.is)){ (key, value) =>
       assertCodec(
         isSet(MockState.Key(key), value),
-        Json.obj("key" := key, "value" := value)
+        Json.obj("set" := Json.obj(key := value))
       )
     }
   }
