@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Hello World",
+    "route": "always",
+    "actions": [
+      {
+        "name": "fixed response",
+        "when": "always",
+        "respond-with": {
+          "status": 200,
+          "headers": [],
+          "body": {"text": "Hello World!"}
+        }
+      }
+    ]
+  }
+]

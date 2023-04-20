@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Context.Negotiation",
+    "route": {
+      "method": {"is": "GET"},
+      "path": {"is": "/foo"}
+    },
+    "actions": [
+      {
+        "name": "expects.JSON",
+        "when": {"headers": [{"Accept": {"is": "application/json"}}]},
+        "respond-with": {
+          "status": 200,
+          "body": {"json": {"method": "GET"}}
+        }
+      },
+      {
+        "name": "expects.TEXT",
+        "when": {"headers": [{"Accept": {"is": "text/plain"}}]},
+        "respond-with": {
+          "status": 200,
+          "body": {"text": "Got the GET!"}
+        }
+      },
+      {
+        "name": "fallthrough",
+        "when": "always",
+        "respond-with": {"status": 204, "body": "empty"}
+      }
+    ]
+  }
+]
