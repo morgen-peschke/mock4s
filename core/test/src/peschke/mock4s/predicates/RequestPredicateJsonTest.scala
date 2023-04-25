@@ -8,7 +8,7 @@ import org.typelevel.ci._
 import peschke.mock4s.MUnitCirce
 import peschke.mock4s.models.MockState
 import peschke.mock4s.predicates.RequestPredicate.{body, route, state}
-import peschke.mock4s.predicates.RoutePredicate.MethodPredicate
+import peschke.mock4s.predicates.MethodPredicate
 
 class RequestPredicateJsonTest extends FunSuite with MUnitCirce {
   test("WhenRoute") {

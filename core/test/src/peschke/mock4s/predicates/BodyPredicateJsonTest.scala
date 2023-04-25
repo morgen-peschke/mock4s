@@ -4,7 +4,7 @@ import io.circe.Json
 import io.circe.syntax._
 import munit.FunSuite
 import peschke.mock4s.MUnitCirce
-import peschke.mock4s.predicates.BodyPredicate.{isEmpty, json, raw, text}
+import peschke.mock4s.predicates.BodyPredicate.{isEmpty, json, bytes, text}
 
 class BodyPredicateJsonTest extends FunSuite with MUnitCirce {
   test("IsEmpty") {
@@ -30,7 +30,7 @@ class BodyPredicateJsonTest extends FunSuite with MUnitCirce {
 
   test("RawBody") {
     assertCodec(
-      raw(StringPredicate.is("SGVsbG8gV29ybGQK")),
+      bytes(StringPredicate.is("SGVsbG8gV29ybGQK")),
       Json.obj("raw" := Json.obj("is" := "SGVsbG8gV29ybGQK"))
     )
   }

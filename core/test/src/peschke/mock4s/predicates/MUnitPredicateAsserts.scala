@@ -5,22 +5,24 @@ import cats.syntax.all._
 import io.circe.Encoder
 import io.circe.syntax._
 import munit.{Assertions, Clue, Location}
+import peschke.mock4s.algebras.PredicateChecker
+import peschke.mock4s.algebras.PredicateChecker.syntax._
 
 trait MUnitPredicateAsserts { self: Assertions =>
-  def assertAccepts[A: Show, PA <: Predicate[A]: Encoder]
-    (predicate:         PA, value: Clue[A])
-    (implicit location: Location)
+  def assertAccepts[In: Show, ADT: Encoder]
+    (predicate:         ADT, value: Clue[In])
+    (implicit location: Location, checker: PredicateChecker[In, ADT])
     : Unit = {
-    if (!predicate.test(value.value)) {
+    if (!predicate.satisfiedBy(value.value)) {
       fail(show"${predicate.asJson.noSpaces}.test(${value.value}) != true")(location)
     }
   }
 
-  def assertRejects[A: Show, PA <: Predicate[A]: Encoder]
-    (predicate:         PA, value: Clue[A])
-    (implicit location: Location)
+  def assertRejects[In: Show, ADT: Encoder]
+    (predicate:         ADT, value: Clue[In])
+    (implicit location: Location, checker: PredicateChecker[In, ADT])
     : Unit = {
-    if (predicate.test(value.value)) {
+    if (predicate.satisfiedBy(value.value)) {
       fail(show"${predicate.asJson.noSpaces}.test(${value.value}) != false")(location)
     }
   }

@@ -245,16 +245,4 @@ object Circe {
         Json.obj(KeyEncoder[A].apply(jot.key) -> Encoder[B].apply(jot.value))
       }
   }
-
-  final case class GeneratedDecoder[A](decoder: Decoder[A])
-
-  object GeneratedDecoder {
-    def apply[A](implicit MD: GeneratedDecoder[A]): MD.type = MD
-  }
-
-  final case class GeneratedEncoder[A](encoder: Encoder[A])
-
-  object GeneratedEncoder {
-    def apply[A](implicit ME: GeneratedEncoder[A]): ME.type = ME
-  }
 }

@@ -1,108 +1,22 @@
 package peschke.mock4s.predicates
 
 import cats.Eq
-import cats.data.Chain
 import cats.syntax.all._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
 import org.http4s.Uri.Path
-import org.http4s.Uri.Path.Segment
-import peschke.mock4s.predicates.PathPredicate.Token.Literal
-import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators}
+import peschke.mock4s.algebras.PredicateChecker
+import peschke.mock4s.models.{Sanitized, |+|}
+import peschke.mock4s.models.|+|.syntax.LiftOps
+import peschke.mock4s.predicates.PathTest.{Contains, EndsWith, In, Is, StartsWith}
 import peschke.mock4s.utils.Circe._
-import peschke.mock4s.utils.ChainUtils._
 
-sealed trait PathPredicate extends Predicate[Path]
-object PathPredicate       extends PredicateWrapper[Path] {
-  sealed trait Token
+sealed trait PathTest {
+  def upcast: PathTest = this
+}
 
-  object Token {
-    final case class Literal(segment: Path.Segment) extends Token
-
-    case object Wildcard extends Token
-    val * : Token = Wildcard
-
-    implicit val eq: Eq[Token] = Eq.instance {
-      case (Literal(a), Literal(b)) => a === b
-      case (Wildcard, Wildcard) => true
-      case _ => false
-    }
-
-    private [PathPredicate] val semanticEq: Eq[Token] = Eq.instance {
-      case (Literal(a), Literal(b)) => a === b
-      case _ => true
-    }
-
-    private [PathPredicate] val semanticChainEq: Eq[Chain[Token]] = Chain.catsDataEqForChain(semanticEq)
-  }
-
-  final case class Sanitized(tokens: Chain[Token], absolute: Boolean, endsWithSlash: Boolean) {
-    def equivalentTo(a: Path): Boolean =
-      Token.semanticChainEq.eqv(Sanitized.fromLiteralPath(a).tokens, tokens)
-
-    def startsWith(a: Sanitized): Boolean =
-      a.absolute === absolute && tokens.startsWith(a.tokens)(Token.semanticEq)
-
-    def starts(a: Path): Boolean = Sanitized.fromLiteralPath(a).startsWith(this)
-
-    def endsWith(a: Sanitized): Boolean =
-      a.endsWithSlash === endsWithSlash && tokens.endsWith(a.tokens)(Token.semanticEq)
-
-    def ends(a: Path): Boolean = Sanitized.fromLiteralPath(a).endsWith(this)
-
-    def contains(a: Sanitized): Boolean = tokens.containsEq(a.tokens)(Token.semanticEq)
-    def containedBy(a: Path): Boolean = Sanitized.fromLiteralPath(a).contains(this)
-
-    def / (token: Token): Sanitized =  Sanitized(tokens.append(token), absolute, endsWithSlash = false)
-    def / (segment: Segment): Sanitized =  this / Literal(segment)
-    def / (str: String): Sanitized =
-      if (str.isEmpty) copy(endsWithSlash = true)
-      else this / Segment(str)
-  }
-
-  object Sanitized {
-    val Root: Sanitized = Sanitized(Chain.empty, absolute = true, endsWithSlash = false)
-    val Empty: Sanitized = Sanitized(Chain.empty, absolute = false, endsWithSlash = false)
-
-    def fromLiteralPath(path: Path): Sanitized =
-      Sanitized(
-        tokens = Chain.fromSeq(path.segments).map(Token.Literal),
-        absolute = path.absolute,
-        endsWithSlash = path.endsWithSlash
-      )
-
-    implicit val decoder: Decoder[Sanitized] = Decoder[Path].map { path =>
-      Sanitized(
-        tokens = Chain.fromSeq(path.segments).map { s =>
-          if (s.encoded === "*") Token.Wildcard
-          else Token.Literal(s)
-        },
-        absolute = path.absolute,
-        endsWithSlash = path.endsWithSlash
-      )
-    }
-
-    implicit val encoder: Encoder[Sanitized] = Encoder[Path].contramap { sanitized =>
-      Path(
-        segments = sanitized.tokens.toVector.map {
-          case Token.Literal(segment) => segment
-          case Token.Wildcard => Path.Segment("*")
-        },
-        absolute = sanitized.absolute,
-        endsWithSlash = sanitized.endsWithSlash
-      )
-    }
-
-    implicit val eq: Eq[Sanitized] = Eq.instance { (a, b) =>
-      a.absolute === b.absolute &&
-        a.endsWithSlash === b.endsWithSlash &&
-        a.tokens === b.tokens
-    }
-  }
-
-  final case class Is(sentinel: Either[Sanitized, Path]) extends PathPredicate {
-    override def test(a: Path): Boolean = sentinel.fold(_.equivalentTo(a), _ === a)
-  }
+object PathTest {
+  final case class Is(sentinel: Either[Sanitized, Path]) extends PathTest
 
   object Is {
     implicit val decoder: Decoder[Is] = anyOf(
@@ -120,9 +34,7 @@ object PathPredicate       extends PredicateWrapper[Path] {
     implicit val eq: Eq[Is] = Eq.by(_.sentinel)
   }
 
-  final case class In(sentinels: Either[List[Sanitized], List[Path]]) extends PathPredicate {
-    override def test(a: Path): Boolean = sentinels.fold(_.exists(_.equivalentTo(a)), _.exists(_ === a))
-  }
+  final case class In(sentinels: Either[List[Sanitized], List[Path]]) extends PathTest
 
   object In {
     implicit val decoder: Decoder[In] = anyOf(
@@ -140,12 +52,7 @@ object PathPredicate       extends PredicateWrapper[Path] {
     implicit val eq: Eq[In] = Eq.by(_.sentinels)
   }
 
-  final case class StartsWith(prefix: Either[Sanitized, Path]) extends PathPredicate {
-    override def test(a: Path): Boolean = prefix.fold(
-      _.starts(a),
-      p => p.absolute === a.absolute && a.startsWith(p)
-    )
-  }
+  final case class StartsWith(prefix: Either[Sanitized, Path]) extends PathTest
 
   object StartsWith {
     implicit val decoder: Decoder[StartsWith] = anyOf(
@@ -163,12 +70,7 @@ object PathPredicate       extends PredicateWrapper[Path] {
     implicit val eq: Eq[StartsWith] = Eq.by(_.prefix)
   }
 
-  final case class EndsWith(suffix: Either[Sanitized, Path]) extends PathPredicate {
-    override def test(a: Path): Boolean = suffix.fold(
-      _.ends(a),
-      p => a.endsWithSlash === p.endsWithSlash && a.segments.endsWith(p.segments)
-    )
-  }
+  final case class EndsWith(suffix: Either[Sanitized, Path]) extends PathTest
 
   object EndsWith {
     implicit val decoder: Decoder[EndsWith] = anyOf(
@@ -186,12 +88,7 @@ object PathPredicate       extends PredicateWrapper[Path] {
     implicit val eq: Eq[EndsWith] = Eq.by(_.suffix)
   }
 
-  final case class Contains(subPath: Either[Sanitized, Path]) extends PathPredicate {
-    override def test(a: Path): Boolean = subPath.fold(
-      _.containedBy(a),
-      p => a.segments.containsSlice(p.segments)
-    )
-  }
+  final case class Contains(subPath: Either[Sanitized, Path]) extends PathTest
 
   object Contains {
     implicit val decoder: Decoder[Contains] = anyOf(
@@ -209,7 +106,7 @@ object PathPredicate       extends PredicateWrapper[Path] {
     implicit val eq: Eq[Contains] = Eq.by(_.subPath)
   }
 
-  implicit val pathPredicateDecoder: Decoder[PathPredicate] = anyOf(
+  implicit val decoder: Decoder[PathTest] = anyOf(
     Is.decoder.widen,
     In.decoder.widen,
     StartsWith.decoder.widen,
@@ -217,15 +114,15 @@ object PathPredicate       extends PredicateWrapper[Path] {
     Contains.decoder.widen
   )
 
-  implicit val pathPredicateEncoder: Encoder[PathPredicate] = Encoder.instance {
-    case pp : Is => pp.asJson
-    case pp : In => pp.asJson
-    case pp : StartsWith => pp.asJson
-    case pp : EndsWith => pp.asJson
-    case pp : Contains => pp.asJson
+  implicit val encoder: Encoder[PathTest] = Encoder.instance {
+    case pp: Is => pp.asJson
+    case pp: In => pp.asJson
+    case pp: StartsWith => pp.asJson
+    case pp: EndsWith => pp.asJson
+    case pp: Contains => pp.asJson
   }
 
-  implicit val pathPredicateEq: Eq[PathPredicate] = Eq.instance {
+  implicit val eq: Eq[PathTest] = Eq.instance {
     case (a: Is, b: Is) => a === b
     case (a: In, b: In) => a === b
     case (a: StartsWith, b: StartsWith) => a === b
@@ -234,80 +131,49 @@ object PathPredicate       extends PredicateWrapper[Path] {
     case _ => false
   }
 
-  override type Base = Fixed[Path] |+| PathPredicate
-
-  override implicit def baseDecoder: Decoder[Base] = GeneratedDecoder[Base].decoder
-  override implicit def baseEncoder: Encoder[Base] = GeneratedEncoder[Base].encoder
-
-  val always: Type = wrap {
-    lhs[Base, UsingCombinators[Path, Base]](
-      lhs[Fixed[Path], PathPredicate](Fixed.Always[Path]())
+  implicit val checker: PredicateChecker[Path, PathTest] = (predicate, in) => predicate match {
+    case Is(sentinel) => sentinel.fold(_.equivalentTo(in), _ === in)
+    case In(sentinels) => sentinels.fold(_.exists(_.equivalentTo(in)), _.exists(_ === in))
+    case StartsWith(prefix) => prefix.fold(_.starts(in), p => p.absolute === in.absolute && in.startsWith(p))
+    case EndsWith(suffix) => suffix.fold(
+      _.ends(in),
+      p => in.endsWithSlash === p.endsWithSlash && in.segments.endsWith(p.segments)
     )
+    case Contains(subPath) => subPath.fold(_.containedBy(in), p => in.segments.containsSlice(p.segments))
   }
+}
 
-  val never: Type = wrap {
-    lhs[Base, UsingCombinators[Path, Base]](
-      lhs[Fixed[Path], PathPredicate](Fixed.Never[Path]())
-    )
-  }
+object PathPredicate extends PredicateWrapper[Path, Fixed[Path] |+| PathTest] {
+  val always: Type = wrap(Fixed.Always[Path]().upcast.first[PathTest].first[UsingCombinators[Base]])
 
-  def is(sentinel: Path): Type = wrap {
-    lhs[Base, UsingCombinators[Path, Base]](
-        rhs[Fixed[Path], PathPredicate](Is(sentinel.asRight))
-    )
-  }
+  val never: Type = wrap(Fixed.Never[Path]().upcast.first[PathTest].first[UsingCombinators[Base]])
 
-  def isSanitized(sentinel: Sanitized): Type = wrap {
-    lhs[Base, UsingCombinators[Path, Base]](
-      rhs[Fixed[Path], PathPredicate](Is(sentinel.asLeft))
-    )
-  }
+  def is(sentinel: Path): Type = wrap(Is(sentinel.asRight).upcast.second[Fixed[Path]].first[UsingCombinators[Base]])
 
-  def in(sentinels: List[Path]): Type = wrap {
-    lhs[Base, UsingCombinators[Path, Base]](
-      rhs[Fixed[Path], PathPredicate](In(sentinels.asRight))
-    )
-  }
+  def isSanitized(sentinel: Sanitized): Type =
+    wrap(Is(sentinel.asLeft).upcast.second[Fixed[Path]].first[UsingCombinators[Base]])
 
-  def inSanitized(sentinels: List[Sanitized]): Type = wrap {
-    lhs[Base, UsingCombinators[Path, Base]](
-      rhs[Fixed[Path], PathPredicate](In(sentinels.asLeft))
-    )
-  }
+  def in(sentinels: List[Path]): Type =
+    wrap(In(sentinels.asRight).upcast.second[Fixed[Path]].first[UsingCombinators[Base]])
 
-  def startsWith(prefix: Path): Type = wrap {
-    lhs[Base, UsingCombinators[Path, Base]](
-      rhs[Fixed[Path], PathPredicate](StartsWith(prefix.asRight))
-    )
-  }
+  def inSanitized(sentinels: List[Sanitized]): Type =
+    wrap(In(sentinels.asLeft).upcast.second[Fixed[Path]].first[UsingCombinators[Base]])
 
-  def startsWithSanitized(prefix: Sanitized): Type = wrap {
-    lhs[Base, UsingCombinators[Path, Base]](
-      rhs[Fixed[Path], PathPredicate](StartsWith(prefix.asLeft))
-    )
-  }
+  def startsWith(prefix: Path): Type =
+    wrap(StartsWith(prefix.asRight).upcast.second[Fixed[Path]].first[UsingCombinators[Base]])
 
-  def endsWith(suffix: Path): Type = wrap {
-    lhs[Base, UsingCombinators[Path, Base]](
-      rhs[Fixed[Path], PathPredicate](EndsWith(suffix.asRight))
-    )
-  }
+  def startsWithSanitized(prefix: Sanitized): Type =
+    wrap(StartsWith(prefix.asLeft).upcast.second[Fixed[Path]].first[UsingCombinators[Base]])
 
-  def endsWithSanitized(suffix: Sanitized): Type = wrap {
-    lhs[Base, UsingCombinators[Path, Base]](
-      rhs[Fixed[Path], PathPredicate](EndsWith(suffix.asLeft))
-    )
-  }
+  def endsWith(suffix: Path): Type =
+    wrap(EndsWith(suffix.asRight).upcast.second[Fixed[Path]].first[UsingCombinators[Base]])
 
-  def contains(subPath: Path): Type = wrap {
-    lhs[Base, UsingCombinators[Path, Base]](
-      rhs[Fixed[Path], PathPredicate](Contains(subPath.asRight))
-    )
-  }
+  def endsWithSanitized(suffix: Sanitized): Type =
+    wrap(EndsWith(suffix.asLeft).upcast.second[Fixed[Path]].first[UsingCombinators[Base]])
 
-  def containsSanitized(subPath: Sanitized): Type = wrap {
-    lhs[Base, UsingCombinators[Path, Base]](
-      rhs[Fixed[Path], PathPredicate](Contains(subPath.asLeft))
-    )
-  }
+  def contains(subPath: Path): Type =
+    wrap(Contains(subPath.asRight).upcast.second[Fixed[Path]].first[UsingCombinators[Base]])
+
+  def containsSanitized(subPath: Sanitized): Type =
+    wrap(Contains(subPath.asLeft).upcast.second[Fixed[Path]].first[UsingCombinators[Base]])
 }

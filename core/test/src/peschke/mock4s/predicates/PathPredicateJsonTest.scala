@@ -5,8 +5,8 @@ import io.circe.syntax._
 import munit._
 import org.http4s.Uri.Path.Root
 import peschke.mock4s.MUnitCirce
-import peschke.mock4s.predicates.PathPredicate.Sanitized.{Root => SRoot, Empty => SEmpty}
-import peschke.mock4s.predicates.PathPredicate.Token.*
+import peschke.mock4s.models.Sanitized.{Root => SRoot, Empty => SEmpty}
+import peschke.mock4s.models.Sanitized.Token.*
 
 class PathPredicateJsonTest extends FunSuite with MUnitCirce {
   test("Sanitized relative, no trailing '/'") {

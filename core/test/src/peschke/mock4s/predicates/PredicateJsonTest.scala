@@ -4,7 +4,6 @@ import io.circe.Json
 import io.circe.syntax._
 import munit._
 import peschke.mock4s.MUnitCirce
-import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators, UsingEq, UsingOrder}
 
 class PredicateJsonTest extends FunSuite with MUnitCirce {
   test("Fixed.Always") {
@@ -40,15 +39,15 @@ class PredicateJsonTest extends FunSuite with MUnitCirce {
   }
 
   test("UsingCombinators.Wrapped") {
-    assertCodec[UsingCombinators[Int, UsingEq[Int]]](
-      UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.In(List(1, 2, 3))),
+    assertCodec[UsingCombinators[UsingEq[Int]]](
+      UsingCombinators.Wrapped[UsingEq[Int]](UsingEq.In(List(1, 2, 3))),
       Json.obj("in" := List(1, 2, 3))
     )
   }
 
   test("UsingCombinators.Not") {
-    assertCodec[UsingCombinators[Int, UsingEq[Int]]](
-      UsingCombinators.Not[Int, UsingEq[Int]](
+    assertCodec[UsingCombinators[UsingEq[Int]]](
+      UsingCombinators.Not[UsingEq[Int]](
         UsingCombinators.Wrapped(UsingEq.In(List(1, 2, 3)))
       ),
       Json.obj("!" := Json.obj("in" := List(1, 2, 3)))
@@ -56,11 +55,11 @@ class PredicateJsonTest extends FunSuite with MUnitCirce {
   }
 
   test("UsingCombinators.ForAll") {
-    assertCodec[UsingCombinators[Int, UsingEq[Int]]](
-      UsingCombinators.ForAll[Int, UsingEq[Int]](
+    assertCodec[UsingCombinators[UsingEq[Int]]](
+      UsingCombinators.ForAll[UsingEq[Int]](
         List(
-          UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.In(List(1, 2, 3))),
-          UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.Is(7))
+          UsingCombinators.Wrapped[UsingEq[Int]](UsingEq.In(List(1, 2, 3))),
+          UsingCombinators.Wrapped[UsingEq[Int]](UsingEq.Is(7))
         )
       ),
       Json.obj(
@@ -73,11 +72,11 @@ class PredicateJsonTest extends FunSuite with MUnitCirce {
   }
 
   test("UsingCombinators.Exists") {
-    assertCodec[UsingCombinators[Int, UsingEq[Int]]](
-      UsingCombinators.Exists[Int, UsingEq[Int]](
+    assertCodec[UsingCombinators[UsingEq[Int]]](
+      UsingCombinators.Exists[UsingEq[Int]](
         List(
-          UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.In(List(1, 2, 3))),
-          UsingCombinators.Wrapped[Int, UsingEq[Int]](UsingEq.Is(7))
+          UsingCombinators.Wrapped[UsingEq[Int]](UsingEq.In(List(1, 2, 3))),
+          UsingCombinators.Wrapped[UsingEq[Int]](UsingEq.Is(7))
         )
       ),
       Json.obj(
@@ -89,7 +88,7 @@ class PredicateJsonTest extends FunSuite with MUnitCirce {
     )
   }
 
-  object SimpleCharPred extends Predicate.SimpleEq[Char]
+  object SimpleCharPred extends SimpleEq[Char]
 
   test("Predicate.SimpleEq") {
     import SimpleCharPred.{always, exists, forall, in, is, never, not}
@@ -119,7 +118,7 @@ class PredicateJsonTest extends FunSuite with MUnitCirce {
     )
   }
 
-  object SimpleIntPred extends Predicate.SimpleOrder[Int]
+  object SimpleIntPred extends SimpleOrder[Int]
 
   test("Predicate.SimpleOrder") {
     import SimpleIntPred.{always, exists, forall, greaterThan, greaterThanEq, in, is, lessThan, lessThanEq, never, not}

@@ -4,105 +4,93 @@ import cats.Eq
 import cats.syntax.all._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
+import peschke.mock4s.algebras.PredicateChecker
+import peschke.mock4s.algebras.PredicateChecker.syntax._
 import peschke.mock4s.models.Body.Base64String
-import peschke.mock4s.models.ParsedBody
-import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators}
+import peschke.mock4s.models.{ParsedBody, |+|}
+import peschke.mock4s.models.|+|.syntax._
+import peschke.mock4s.predicates.BodyTest.{IsEmpty, JsonBodyPredicate, RawBodyPredicate, TextBodyPredicate}
 import peschke.mock4s.utils.Circe._
 
-sealed trait BodyPredicate extends Predicate[ParsedBody]
-object BodyPredicate       extends PredicateWrapper[ParsedBody] {
-  case object IsEmpty extends BodyPredicate {
-    override def test(a: ParsedBody): Boolean = a match {
-      case ParsedBody.EmptyBody => true
-      case _                    => false
-    }
-  }
+sealed trait BodyTest {
+  def upcast: BodyTest = this
+}
+object BodyTest {
+  case object IsEmpty extends BodyTest
 
-  final case class TextBodyPredicate(p: StringPredicate.Type) extends BodyPredicate {
-    override def test(a: ParsedBody): Boolean = a match {
-      case ParsedBody.TextBody(text, _, _) => p.test(text)
-      case ParsedBody.JsonBody(_, text, _) => p.test(text)
-      case _                               => false
-    }
-  }
+  final case class TextBodyPredicate(p: StringPredicate.Type) extends BodyTest
 
-  final case class JsonBodyPredicate(p: JsonPredicate.Type) extends BodyPredicate {
-    override def test(a: ParsedBody): Boolean = a match {
-      case ParsedBody.JsonBody(json, _, _) => p.test(json)
-      case _                               => false
-    }
-  }
+  final case class JsonBodyPredicate(p: JsonPredicate.Type) extends BodyTest
 
-  final case class RawBodyPredicate(p: StringPredicate.Type) extends BodyPredicate {
-    override def test(a: ParsedBody): Boolean = a match {
-      case ParsedBody.JsonBody(_, _, bytes) => p.test(Base64String.raw(bytes))
-      case ParsedBody.TextBody(_, bytes, _) => p.test(Base64String.raw(bytes))
-      case ParsedBody.RawBody(bytes, _)     => p.test(Base64String.raw(bytes))
-      case _                                => false
-    }
-  }
+  final case class RawBodyPredicate(p: StringPredicate.Type) extends BodyTest
 
-  implicit val bodyPredicateDecoder: Decoder[BodyPredicate] = anyOf[BodyPredicate](
+  implicit val decoder: Decoder[BodyTest] = anyOf[BodyTest](
     fixed("empty").as(IsEmpty),
     Decoder[StringPredicate.Type].at("text").map(TextBodyPredicate),
     Decoder[JsonPredicate.Type].at("json").map(JsonBodyPredicate),
     Decoder[StringPredicate.Type].at("raw").map(RawBodyPredicate)
   )
 
-  implicit val bodyPredicateEncoder: Encoder[BodyPredicate] = Encoder.instance {
-    case IsEmpty              => "empty".asJson
+  implicit val encoder: Encoder[BodyTest] = Encoder.instance {
+    case IsEmpty => Json.fromString("empty")
     case TextBodyPredicate(p) => Json.obj("text" := p)
     case JsonBodyPredicate(p) => Json.obj("json" := p)
-    case RawBodyPredicate(p)  => Json.obj("raw" := p)
+    case RawBodyPredicate(p) => Json.obj("raw" := p)
   }
 
-  implicit val bodyPredicateEq: Eq[BodyPredicate] = Eq.instance {
-    case (IsEmpty, IsEmpty)                           => true
+  implicit val eq: Eq[BodyTest] = Eq.instance {
+    case (IsEmpty, IsEmpty) => true
     case (TextBodyPredicate(a), TextBodyPredicate(b)) => a === b
     case (JsonBodyPredicate(a), JsonBodyPredicate(b)) => a === b
-    case (RawBodyPredicate(a), RawBodyPredicate(b))   => a === b
-    case _                                            => false
+    case (RawBodyPredicate(a), RawBodyPredicate(b)) => a === b
+    case _ => false
   }
 
-  override type Base = Fixed[ParsedBody] |+| BodyPredicate
+  implicit val checker: PredicateChecker[ParsedBody, BodyTest] = (predicate, in) => predicate match {
+    case IsEmpty => in match {
+      case ParsedBody.EmptyBody => true
+      case _ => false
+    }
+    case TextBodyPredicate(p) => in match {
+      case ParsedBody.TextBody(text, _, _) => text.satisfies(p)
+      case ParsedBody.JsonBody(_, text, _) => text.satisfies(p)
+      case _ => false
+    }
+    case JsonBodyPredicate(p) => in match {
+      case ParsedBody.JsonBody(json, _, _) => json.satisfies(p)
+      case _ => false
+    }
+    case RawBodyPredicate(p) => in match {
+      case ParsedBody.JsonBody(_, _, bytes) => Base64String.raw(bytes).satisfies(p)
+      case ParsedBody.TextBody(_, bytes, _) => Base64String.raw(bytes).satisfies(p)
+      case ParsedBody.RawBody(bytes, _) => Base64String.raw(bytes).satisfies(p)
+      case _ => false
+    }
+  }
+}
 
-  override implicit def baseDecoder: Decoder[Base] = GeneratedDecoder[Base].decoder
-
-  override implicit def baseEncoder: Encoder[Base] = GeneratedEncoder[Base].encoder
-
+object BodyPredicate extends PredicateWrapper[ParsedBody, Fixed[ParsedBody] |+| BodyTest] {
   val always: Type = wrap {
-    lhs[Base, UsingCombinators[ParsedBody, Base]](
-      lhs[Fixed[ParsedBody], BodyPredicate](Fixed.Always[ParsedBody]())
-    )
+    Fixed.Always[ParsedBody]().upcast.first[BodyTest].first[UsingCombinators[Base]]
   }
 
   val never: Type = wrap {
-    lhs[Base, UsingCombinators[ParsedBody, Base]](
-      lhs[Fixed[ParsedBody], BodyPredicate](Fixed.Never[ParsedBody]())
-    )
+    Fixed.Never[ParsedBody]().upcast.first[BodyTest].first[UsingCombinators[Base]]
   }
 
   val isEmpty: Type = wrap {
-    lhs[Base, UsingCombinators[ParsedBody, Base]](
-      rhs[Fixed[ParsedBody], BodyPredicate](IsEmpty)
-    )
+    IsEmpty.upcast.second[Fixed[ParsedBody]].first[UsingCombinators[Base]]
   }
 
   def text(p: StringPredicate.Type): Type = wrap {
-    lhs[Base, UsingCombinators[ParsedBody, Base]](
-      rhs[Fixed[ParsedBody], BodyPredicate](TextBodyPredicate(p))
-    )
+    TextBodyPredicate(p).upcast.second[Fixed[ParsedBody]].first[UsingCombinators[Base]]
   }
 
   def json(p: JsonPredicate.Type): Type = wrap {
-    lhs[Base, UsingCombinators[ParsedBody, Base]](
-      rhs[Fixed[ParsedBody], BodyPredicate](JsonBodyPredicate(p))
-    )
+    JsonBodyPredicate(p).upcast.second[Fixed[ParsedBody]].first[UsingCombinators[Base]]
   }
 
-  def raw(p: StringPredicate.Type): Type = wrap {
-    lhs[Base, UsingCombinators[ParsedBody, Base]](
-      rhs[Fixed[ParsedBody], BodyPredicate](RawBodyPredicate(p))
-    )
+  def bytes(p: StringPredicate.Type): Type = wrap {
+    RawBodyPredicate(p).upcast.second[Fixed[ParsedBody]].first[UsingCombinators[Base]]
   }
 }

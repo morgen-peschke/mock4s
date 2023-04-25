@@ -5,62 +5,58 @@ import cats.syntax.all._
 import io.circe.{Decoder, Encoder}
 import org.http4s.Header
 import org.typelevel.ci.CIString
-import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators, UsingEq}
+import peschke.mock4s.algebras.PredicateChecker
+import peschke.mock4s.algebras.PredicateChecker.syntax._
+import peschke.mock4s.models.|+|
+import peschke.mock4s.models.|+|.syntax.LiftOps
 import peschke.mock4s.utils.Circe._
 
-object HeaderPredicate extends PredicateWrapper[Header.Raw] {
-  case class BaseHeaderPred(name: CIString, value: StringPredicate.Type) extends Predicate[Header.Raw] {
-    override def test(a: Header.Raw): Boolean = a.name === name && value.test(a.value)
-  }
-  implicit val baseEq: Eq[BaseHeaderPred] = Eq.instance { (a, b) =>
+final case class HeaderTest(name: CIString, value: StringPredicate.Type)
+
+object HeaderTest {
+  implicit val eq: Eq[HeaderTest] = Eq.instance { (a, b) =>
     a.name === b.name && a.value === b.value
   }
 
-  implicit def baseDecoder(implicit predDecoder: Decoder[StringPredicate.Type]): Decoder[BaseHeaderPred] =
-    Decoder[JsonObjectTuple[CIString, StringPredicate.Type]].map(jot => BaseHeaderPred(jot.key, jot.value))
+  implicit val decoder: Decoder[HeaderTest] =
+    Decoder[JsonObjectTuple[CIString, StringPredicate.Type]].map(jot => HeaderTest(jot.key, jot.value))
 
-  implicit def baseEncoder(implicit predEncoder: Encoder[StringPredicate.Type]): Encoder[BaseHeaderPred] =
+  implicit val encoder: Encoder[HeaderTest] =
     Encoder[JsonObjectTuple[CIString, StringPredicate.Type]]
-      .contramap[BaseHeaderPred](bhp => JsonObjectTuple(bhp.name, bhp.value))
+      .contramap[HeaderTest](bhp => JsonObjectTuple(bhp.name, bhp.value))
 
-  type Base = BaseHeaderPred |+| Fixed[Header.Raw] |+| UsingEq[Header.Raw]
+  implicit val checker: PredicateChecker[Header.Raw, HeaderTest] =
+    (predicate, in) => in.name === predicate.name && in.value.satisfies(predicate.value)
+}
 
-  override implicit val baseDecoder: Decoder[Base] = GeneratedDecoder[Base].decoder
-  override implicit val baseEncoder: Encoder[Base] = GeneratedEncoder[Base].encoder
-
+object HeaderPredicate extends PredicateWrapper[Header.Raw, HeaderTest |+| Fixed[Header.Raw] |+| UsingEq[Header.Raw]] {
   val always: Type = wrap {
-    lhs[Base, UsingCombinators[Header.Raw, Base]](
-      lhs[BaseHeaderPred |+| Fixed[Header.Raw], UsingEq[Header.Raw]](
-        rhs[BaseHeaderPred, Fixed[Header.Raw]](Fixed.Always[Header.Raw]())
-      )
-    )
+    Fixed.Always[Header.Raw]().upcast.second[HeaderTest].first[UsingEq[Header.Raw]].first[UsingCombinators[Base]]
   }
 
   val never: Type = wrap {
-    lhs[Base, UsingCombinators[Header.Raw, Base]](
-      lhs[BaseHeaderPred |+| Fixed[Header.Raw], UsingEq[Header.Raw]](
-        rhs[BaseHeaderPred, Fixed[Header.Raw]](Fixed.Never[Header.Raw]())
-      )
-    )
+    Fixed.Never[Header.Raw]().upcast.second[HeaderTest].first[UsingEq[Header.Raw]].first[UsingCombinators[Base]]
   }
 
   def is(sentinel: Header.Raw): Type = wrap {
-    lhs[Base, UsingCombinators[Header.Raw, Base]](
-      rhs[BaseHeaderPred |+| Fixed[Header.Raw], UsingEq[Header.Raw]](UsingEq.Is[Header.Raw](sentinel))
-    )
+    UsingEq.Is[Header.Raw](sentinel)
+      .upcast
+      .second[HeaderTest |+| Fixed[Header.Raw]]
+      .first[UsingCombinators[Base]]
   }
 
+
   def in(sentinels: List[Header.Raw]): Type = wrap {
-    lhs[Base, UsingCombinators[Header.Raw, Base]](
-      rhs[BaseHeaderPred |+| Fixed[Header.Raw], UsingEq[Header.Raw]](UsingEq.In[Header.Raw](sentinels))
-    )
+    UsingEq.In[Header.Raw](sentinels)
+      .upcast
+      .second[HeaderTest |+| Fixed[Header.Raw]]
+      .first[UsingCombinators[Base]]
   }
 
   def header(name: CIString, value: StringPredicate.Type): Type = wrap {
-    lhs[Base, UsingCombinators[Header.Raw, Base]](
-      lhs[BaseHeaderPred |+| Fixed[Header.Raw], UsingEq[Header.Raw]](
-        lhs[BaseHeaderPred, Fixed[Header.Raw]](BaseHeaderPred(name, value))
-      )
-    )
+    HeaderTest(name, value)
+      .first[Fixed[Header.Raw]]
+      .first[UsingEq[Header.Raw]]
+      .first[UsingCombinators[Base]]
   }
 }

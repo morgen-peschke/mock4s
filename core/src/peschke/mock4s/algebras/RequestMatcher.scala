@@ -7,6 +7,7 @@ import io.circe.Json
 import io.circe.syntax._
 import org.http4s.{Request, Status}
 import org.typelevel.log4cats.LoggerFactory
+import peschke.mock4s.algebras.PredicateChecker.syntax._
 import peschke.mock4s.models.MockDefinition.{Action, MockName}
 import peschke.mock4s.models.{Body, ParsedRequest, ResponseDef}
 import peschke.mock4s.utils.Circe._
@@ -23,7 +24,7 @@ object RequestMatcher      {
 
       private def findMockDefinition(parsedRequest: ParsedRequest): F[Option[MockName]] = {
         MocksManager[F].listAllRoutes.flatMap { mocks =>
-          mocks.find(_._2.test(parsedRequest.route)) match {
+          mocks.find(_._2.satisfiedBy(parsedRequest.route)) match {
             case None => logger.warn("Unable to find matching mock definition").as(none[MockName])
             case Some((mockName, _)) =>
               logger.info(show"Matched mock definition: $mockName").as(mockName.some)
@@ -32,7 +33,7 @@ object RequestMatcher      {
       }
 
       private def findAction(actions: Chain[Action], parsedRequest: ParsedRequest): F[Option[Action]] =
-        actions.find(_.when.test(parsedRequest)) match {
+        actions.find(_.when.satisfiedBy(parsedRequest)) match {
           case a @ Some(action) => logger.info(show"Found action: ${action.name}").as(a)
           case None             => logger.warn("Unable to find matching action").as(none[Action])
         }

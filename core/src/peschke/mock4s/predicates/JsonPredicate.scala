@@ -5,26 +5,56 @@ import cats.data.{Chain, NonEmptyChain}
 import cats.syntax.all._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
-import peschke.mock4s.models.JsonPath
+import peschke.mock4s.algebras.PredicateChecker
+import peschke.mock4s.algebras.PredicateChecker.syntax._
 import peschke.mock4s.models.JsonPath.Segment
-import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators, UsingEq, UsingOrder}
+import peschke.mock4s.models.{JsonPath, |+|}
+import peschke.mock4s.models.|+|.syntax._
 import peschke.mock4s.utils.Circe._
 
-object JsonPredicate extends PredicateWrapper[Json] {
-  final case class WithPath(pathOpt: Option[JsonPath], when: Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json])
-      extends Predicate[Json] {
-    override def test(a: Json): Boolean =
-      pathOpt.fold(when.test(a)) { path =>
+final case class JsonTest(pathOpt: Option[JsonPath], when: Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json])
+object JsonTest {
+  implicit val decoder: Decoder[JsonTest] = {
+    val predDecoder = Decoder[Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json]]
+    accumulatingDecoder[JsonTest] { c =>
+      if (c.keys.exists(_.exists(_ === "path")))
+        (
+          c.downField("path").asAcc[JsonPath].map(_.some),
+          c.downField("when").asAcc(predDecoder)
+        ).mapN(JsonTest(_, _))
+      else c.asAcc(predDecoder).map(JsonTest(None, _))
+    }
+  }
+
+  implicit val encoder: Encoder[JsonTest] = {
+    val predEncoder = Encoder[Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json]]
+    Encoder.instance[JsonTest] { wp =>
+      wp.pathOpt.fold(predEncoder(wp.when)) { path =>
+        Json.obj("path" := path, "when" := predEncoder(wp.when))
+      }
+    }
+  }
+
+  // This has to be explicit or it'll return `null`. Probably initialization order issues
+  private implicit val whenChecker: PredicateChecker[Json, Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json]] =
+    Fixed.predicateChecker[Json] |+| UsingEq.checker[Json] |+| UsingOrder.checker[Json]
+
+  implicit lazy val checker: PredicateChecker[Json, JsonTest] = new PredicateChecker[Json, JsonTest] {
+    private val WhenNever: Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json] =
+      Fixed.Never[Json]().upcast.first[UsingEq[Json]].first[UsingOrder[Json]]
+
+    override def test(withPath: JsonTest, json: Json): Boolean =
+      withPath.pathOpt.fold(json.satisfies(withPath.when)) { path =>
         val expectingArray = path.segments.exists {
           case Segment.DownArray => true
-          case _                 => false
+          case _ => false
         }
         val pathResultsOpt: Option[Either[NonEmptyChain[Json], Json]] =
           NonEmptyChain
             .fromChain {
               path
                 .segments
-                .foldLeft[Chain[Json]](Chain.one(a))(_ <<: _)
+                .foldLeft[Chain[Json]](Chain.one(json))(_ <<: _)
             }
             .map { nel =>
               if (expectingArray) nel.asLeft
@@ -33,159 +63,69 @@ object JsonPredicate extends PredicateWrapper[Json] {
             }
 
         // Special case: never accepts JSON that has nothing at the path
-        if (when === WhenNever) pathResultsOpt.isEmpty
+        if (withPath.when === WhenNever) pathResultsOpt.isEmpty
         else
           pathResultsOpt.exists {
-            case Right(json)   => when.test(json)
-            case Left(jsonNec) => jsonNec.exists(when.test)
+            case Right(jsonResult) => jsonResult.satisfies(withPath.when)
+            case Left(jsonResultNec) => jsonResultNec.exists(withPath.when.satisfiedBy(_))
           }
       }
   }
 
-  private val WhenNever: Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json] =
-    lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-      lhs[Fixed[Json], UsingEq[Json]](Fixed.Never())
-    )
-
-  type Base = WithPath
-
-  override implicit val baseDecoder: Decoder[WithPath] = {
-    val predDecoder = GeneratedDecoder[Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json]].decoder
-    accumulatingDecoder[WithPath] { c =>
-      if (c.keys.exists(_.exists(_ === "path")))
-        (
-          c.downField("path").asAcc[JsonPath].map(_.some),
-          c.downField("when").asAcc(predDecoder)
-        ).mapN(WithPath)
-      else c.asAcc(predDecoder).map(WithPath(None, _))
-    }
-  }
-  override implicit val baseEncoder: Encoder[WithPath] = {
-    val predEncoder = GeneratedEncoder[Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json]].encoder
-    Encoder.instance[WithPath] { wp =>
-      wp.pathOpt.fold(predEncoder(wp.when)) { path =>
-        Json.obj("path" := path, "when" := predEncoder(wp.when))
-      }
-    }
-  }
-
-  implicit val baseEq: Eq[WithPath] = Eq.instance { (a, b) =>
+  implicit val eq: Eq[JsonTest] = Eq.instance { (a, b) =>
     a.pathOpt === b.pathOpt
   }
+}
 
-  val always: Type = wrap {
-    lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(
-        none[JsonPath],
-        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](lhs[Fixed[Json], UsingEq[Json]](Fixed.Always[Json]()))
-      )
-    )
-  }
-  def always(path: JsonPath): Type = wrap {
-    lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(
-        path.some,
-        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-          lhs[Fixed[Json], UsingEq[Json]](Fixed.Always[Json]())
-        )
-      )
-    )
-  }
+object JsonPredicate extends PredicateWrapper[Json, JsonTest] {
+  private def noPath(p: Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json]): Type =
+    wrap(JsonTest(none[JsonPath], p).first[UsingCombinators[Base]])
 
-  val never: Type = wrap {
-    lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(
-        none[JsonPath],
-        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](lhs[Fixed[Json], UsingEq[Json]](Fixed.Never[Json]()))
-      )
-    )
-  }
-  def never(path: JsonPath): Type = wrap {
-    lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(
-        path.some,
-        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](lhs[Fixed[Json], UsingEq[Json]](Fixed.Never[Json]()))
-      )
-    )
-  }
+  private def hasPath(path: JsonPath, p: Fixed[Json] |+| UsingEq[Json] |+| UsingOrder[Json]): Type =
+    wrap(JsonTest(path.some, p).first[UsingCombinators[Base]])
 
-  def is(sentinel: Json): Type = wrap {
-    lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(
-        none[JsonPath],
-        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](rhs[Fixed[Json], UsingEq[Json]](UsingEq.Is[Json](sentinel)))
-      )
-    )
-  }
+  val always: Type = noPath(Fixed.Always[Json]().upcast.first[UsingEq[Json]].first[UsingOrder[Json]])
 
-  def is(path: JsonPath, sentinel: Json): Type = wrap {
-    lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(
-        path.some,
-        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](rhs[Fixed[Json], UsingEq[Json]](UsingEq.Is[Json](sentinel)))
-      )
-    )
-  }
+  def always(path: JsonPath): Type =
+    hasPath(path, Fixed.Always[Json]().upcast.first[UsingEq[Json]].first[UsingOrder[Json]])
 
-  def in(sentinels: List[Json]): Type = wrap {
-    lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(
-        none[JsonPath],
-        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](rhs[Fixed[Json], UsingEq[Json]](UsingEq.In[Json](sentinels)))
-      )
-    )
-  }
+  val never: Type = noPath(Fixed.Never[Json]().upcast.first[UsingEq[Json]].first[UsingOrder[Json]])
 
-  def in(path: JsonPath, sentinels: List[Json]): Type = wrap {
-    lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(
-        path.some,
-        lhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](rhs[Fixed[Json], UsingEq[Json]](UsingEq.In[Json](sentinels)))
-      )
-    )
-  }
+  def never(path: JsonPath): Type =
+    hasPath(path, Fixed.Never[Json]().upcast.first[UsingEq[Json]].first[UsingOrder[Json]])
 
-  def lessThan(sentinel: Json): Type = wrap {
-    lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(
-        none[JsonPath],
-        rhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-          UsingOrder.LessThan[Json](sentinel)
-        )
-      )
-    )
-  }
+  def is(sentinel: Json): Type = noPath(UsingEq.Is[Json](sentinel).upcast.second[Fixed[Json]].first[UsingOrder[Json]])
 
-  def lessThanEq(sentinel: Json): Type = wrap {
-    lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(
-        none[JsonPath],
-        rhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-          UsingOrder.LessThanEq[Json](sentinel)
-        )
-      )
-    )
-  }
+  def is(path: JsonPath, sentinel: Json): Type =
+    hasPath(path, UsingEq.Is[Json](sentinel).upcast.second[Fixed[Json]].first[UsingOrder[Json]])
 
-  def greaterThan(sentinel: Json): Type = wrap {
-    lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(
-        none[JsonPath],
-        rhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-          UsingOrder.GreaterThan[Json](sentinel)
-        )
-      )
-    )
-  }
+  def in(sentinels: List[Json]): Type =
+    noPath(UsingEq.In[Json](sentinels).upcast.second[Fixed[Json]].first[UsingOrder[Json]])
 
-  def greaterThanEq(sentinel: Json): Type = wrap {
-    lhs[Base, UsingCombinators[Json, Base]](
-      WithPath(
-        none[JsonPath],
-        rhs[Fixed[Json] |+| UsingEq[Json], UsingOrder[Json]](
-          UsingOrder.GreaterThanEq[Json](sentinel)
-        )
-      )
-    )
-  }
+  def in(path: JsonPath, sentinels: List[Json]): Type =
+    hasPath(path, UsingEq.In[Json](sentinels).upcast.second[Fixed[Json]].first[UsingOrder[Json]])
+
+  def lessThan(sentinel: Json): Type =
+    noPath(UsingOrder.LessThan[Json](sentinel).upcast.second[Fixed[Json] |+| UsingEq[Json]])
+
+  def lessThan(path: JsonPath, sentinel: Json): Type =
+    hasPath(path, UsingOrder.LessThan[Json](sentinel).upcast.second[Fixed[Json] |+| UsingEq[Json]])
+
+  def lessThanEq(sentinel: Json): Type =
+    noPath(UsingOrder.LessThanEq[Json](sentinel).upcast.second[Fixed[Json] |+| UsingEq[Json]])
+
+  def lessThanEq(path: JsonPath, sentinel: Json): Type =
+    hasPath(path, UsingOrder.LessThanEq[Json](sentinel).upcast.second[Fixed[Json] |+| UsingEq[Json]])
+
+  def greaterThan(sentinel: Json): Type =
+    noPath(UsingOrder.GreaterThan[Json](sentinel).upcast.second[Fixed[Json] |+| UsingEq[Json]])
+
+  def greaterThan(path: JsonPath, sentinel: Json): Type =
+    hasPath(path, UsingOrder.GreaterThan[Json](sentinel).upcast.second[Fixed[Json] |+| UsingEq[Json]])
+
+  def greaterThanEq(sentinel: Json): Type =
+    noPath(UsingOrder.GreaterThanEq[Json](sentinel).upcast.second[Fixed[Json] |+| UsingEq[Json]])
+
+  def greaterThanEq(path: JsonPath, sentinel: Json): Type =
+    hasPath(path, UsingOrder.GreaterThanEq[Json](sentinel).upcast.second[Fixed[Json] |+| UsingEq[Json]])
 }

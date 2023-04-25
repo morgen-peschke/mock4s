@@ -6,7 +6,7 @@ import munit._
 import org.http4s.{Method, Query, Uri}
 import peschke.mock4s.MUnitCirce
 import peschke.mock4s.models.MockState
-import peschke.mock4s.predicates.RoutePredicate.{MethodPredicate, QueryPredicate, method, path, query, state}
+import peschke.mock4s.predicates.RoutePredicate.{method, path, query, state}
 
 class RoutePredicateJsonTest extends FunSuite with MUnitCirce {
   test("WhenMethod") {

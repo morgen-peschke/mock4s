@@ -8,8 +8,7 @@ import org.http4s.{Method, Status}
 import org.typelevel.ci._
 import peschke.mock4s.MUnitCirce
 import peschke.mock4s.models.MockDefinition.{Action, ActionName}
-import peschke.mock4s.predicates.RoutePredicate.MethodPredicate
-import peschke.mock4s.predicates.{HeaderPredicate, JsonPredicate, RequestPredicate, RoutePredicate, StatePredicate, StringPredicate}
+import peschke.mock4s.predicates.{HeaderPredicate, JsonPredicate, MethodPredicate, RequestPredicate, RoutePredicate, StatePredicate, StringPredicate}
 
 class MockDefinitionJsonTest extends FunSuite with MUnitCirce {
   test("Action codec (simple)") {

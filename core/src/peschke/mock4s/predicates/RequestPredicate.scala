@@ -4,93 +4,72 @@ import cats.Eq
 import cats.syntax.all._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
-import peschke.mock4s.models.ParsedRequest
+import peschke.mock4s.algebras.PredicateChecker
+import peschke.mock4s.algebras.PredicateChecker.syntax._
+import peschke.mock4s.models.{ParsedRequest, |+|}
+import peschke.mock4s.models.|+|.syntax._
 import peschke.mock4s.predicates
-import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators}
+import peschke.mock4s.predicates.RequestTest.{WhenBody, WhenHeaders, WhenRoute, WhenState}
 import peschke.mock4s.utils.Circe._
 
-sealed trait RequestPredicate extends Predicate[ParsedRequest] {
-  def requestPredicate: RequestPredicate = this
+sealed trait RequestTest {
+  def upcast: RequestTest = this
 }
-object RequestPredicate       extends PredicateWrapper[ParsedRequest] {
 
-  final case class WhenRoute(p: RoutePredicate.Type) extends RequestPredicate {
-    override def test(a: ParsedRequest): Boolean = p.test(a.route)
-  }
+object RequestTest {
+  final case class WhenRoute(p: RoutePredicate.Type) extends RequestTest
 
-  final case class WhenHeaders(px: List[HeaderPredicate.Type]) extends RequestPredicate {
-    override def test(a: ParsedRequest): Boolean = px.forall(p => a.headers.exists(p.test))
-  }
+  final case class WhenHeaders(px: List[HeaderPredicate.Type]) extends RequestTest
 
-  final case class WhenBody(p: BodyPredicate.Type) extends RequestPredicate {
-    override def test(a: ParsedRequest): Boolean = p.test(a.body)
-  }
+  final case class WhenBody(p: BodyPredicate.Type) extends RequestTest
 
-  final case class WhenState(p: StatePredicate.Type) extends RequestPredicate {
-    override def test(a: ParsedRequest): Boolean = p.test(a.route.state)
-  }
+  final case class WhenState(p: StatePredicate.Type) extends RequestTest
 
-  implicit val requestPredicateDecoder: Decoder[RequestPredicate] = anyOf[RequestPredicate](
+  implicit val decoder: Decoder[RequestTest] = anyOf[RequestTest](
     Decoder[RoutePredicate.Type].at("route").map(WhenRoute),
     Decoder[List[HeaderPredicate.Type]].at("headers").map(WhenHeaders),
     Decoder[BodyPredicate.Type].at("body").map(WhenBody),
     Decoder[StatePredicate.Type].at("state").map(WhenState)
   )
 
-  implicit val requestPredicateEncoder: Encoder[RequestPredicate] = Encoder.instance {
-    case WhenRoute(p)    => Json.obj("route" := p)
+  implicit val encoder: Encoder[RequestTest] = Encoder.instance {
+    case WhenRoute(p) => Json.obj("route" := p)
     case WhenHeaders(px) => Json.obj("headers" := px)
-    case WhenBody(p)     => Json.obj("body" := p)
-    case WhenState(p)    => Json.obj("state" := p)
+    case WhenBody(p) => Json.obj("body" := p)
+    case WhenState(p) => Json.obj("state" := p)
   }
 
-  implicit val requestPredicateEq: Eq[RequestPredicate] = Eq.instance {
-    case (WhenRoute(a), WhenRoute(b))     => a === b
+  implicit val eq: Eq[RequestTest] = Eq.instance {
+    case (WhenRoute(a), WhenRoute(b)) => a === b
     case (WhenHeaders(a), WhenHeaders(b)) => a === b
-    case (WhenBody(a), WhenBody(b))       => a === b
-    case (WhenState(a), WhenState(b))     => a === b
-    case _                                => false
+    case (WhenBody(a), WhenBody(b)) => a === b
+    case (WhenState(a), WhenState(b)) => a === b
+    case _ => false
   }
 
-  override type Base = Fixed[ParsedRequest] |+| RequestPredicate
+  implicit val predicateChecker: PredicateChecker[ParsedRequest, RequestTest] =
+    (predicate, in) => predicate match {
+      case WhenRoute(p) => in.route.satisfies(p)
+      case WhenHeaders(px) => px.forall(p => in.headers.exists(_.satisfies(p)))
+      case WhenBody(p) => in.body.satisfies(p)
+      case WhenState(p) => in.route.state.satisfies(p)
+    }
+}
 
-  override implicit def baseDecoder: Decoder[Base] = GeneratedDecoder[Base].decoder
-  override implicit def baseEncoder: Encoder[Base] = GeneratedEncoder[Base].encoder
+object RequestPredicate extends PredicateWrapper[ParsedRequest, Fixed[ParsedRequest] |+| RequestTest] {
+  val always: Type = wrap(Fixed.Always[ParsedRequest]().upcast.first[RequestTest].first[UsingCombinators[Base]])
 
-  val always: Type = wrap(
-    lhs[Base, UsingCombinators[ParsedRequest, Base]](
-      lhs[Fixed[ParsedRequest], RequestPredicate](Fixed.Always[ParsedRequest]())
-    )
-  )
+  val never: Type = wrap(Fixed.Never[ParsedRequest]().upcast.first[RequestTest].first[UsingCombinators[Base]])
 
-  val never: Type = wrap(
-    lhs[Base, UsingCombinators[ParsedRequest, Base]](
-      lhs[Fixed[ParsedRequest], RequestPredicate](Fixed.Never[ParsedRequest]())
-    )
-  )
+  def route(p: RoutePredicate.Type): Type =
+    wrap(WhenRoute(p).upcast.second[Fixed[ParsedRequest]].first[UsingCombinators[Base]])
 
-  def route(p: RoutePredicate.Type): Type = wrap {
-    lhs[Base, UsingCombinators[ParsedRequest, Base]](
-      rhs[Fixed[ParsedRequest], RequestPredicate](WhenRoute(p))
-    )
-  }
+  def headers(px: List[HeaderPredicate.Type]): Type =
+    wrap(WhenHeaders(px).upcast.second[Fixed[ParsedRequest]].first[UsingCombinators[Base]])
 
-  def headers(px: List[HeaderPredicate.Type]): Type = wrap {
-    lhs[Base, UsingCombinators[ParsedRequest, Base]](
-      rhs[Fixed[ParsedRequest], RequestPredicate](WhenHeaders(px))
-    )
-  }
-
-  def body(p: predicates.BodyPredicate.Type): Type = wrap {
-    lhs[Base, UsingCombinators[ParsedRequest, Base]](
-      rhs[Fixed[ParsedRequest], RequestPredicate](WhenBody(p))
-    )
-  }
+  def body(p: predicates.BodyPredicate.Type): Type =
+    wrap(WhenBody(p).upcast.second[Fixed[ParsedRequest]].first[UsingCombinators[Base]])
 
   def state(p: StatePredicate.Type): Type =
-    WhenState(p)
-      .requestPredicate
-      .rhs[Fixed[ParsedRequest]]
-      .lhs[UsingCombinators[ParsedRequest, Base]]
-      .wrapped
+    wrap(WhenState(p).upcast.second[Fixed[ParsedRequest]].first[UsingCombinators[Base]])
 }

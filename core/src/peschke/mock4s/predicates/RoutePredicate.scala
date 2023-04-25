@@ -5,114 +5,82 @@ import cats.syntax.all._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
 import org.http4s.{Method, Query}
+import peschke.mock4s.algebras.PredicateChecker
+import peschke.mock4s.algebras.PredicateChecker.syntax._
 import peschke.mock4s.models.ParsedRequest.Route
-import peschke.mock4s.predicates.Predicate.{Fixed, UsingCombinators, UsingEq}
+import peschke.mock4s.models.|+|
+import peschke.mock4s.models.|+|.syntax._
+import peschke.mock4s.predicates.RouteTests.{WhenMethod, WhenPath, WhenQuery, WhenState}
 import peschke.mock4s.utils.Circe._
 
-sealed trait RoutePredicate extends Predicate[Route] {
-  def routePredicate: RoutePredicate = this
+object MethodPredicate extends SimpleEq[Method]
+object QueryPredicate extends SimpleEq[Query]
+
+sealed trait RouteTests {
+  def upcast: RouteTests = this
 }
-object RoutePredicate       extends PredicateWrapper[Route] {
-  object MethodPredicate extends Predicate.SimpleEq[Method]
-  object QueryPredicate  extends Predicate.SimpleEq[Query]
 
-  final case class WhenMethod(predicate: MethodPredicate.Type) extends RoutePredicate {
-    override def test(a: Route): Boolean = predicate.test(a.method)
-  }
+object RouteTests {
+  final case class WhenMethod(predicate: MethodPredicate.Type) extends RouteTests
 
-  final case class WhenPath(predicate: PathPredicate.Type) extends RoutePredicate {
-    override def test(a: Route): Boolean = predicate.test(a.path)
-  }
+  final case class WhenPath(predicate: PathPredicate.Type) extends RouteTests
 
-  final case class WhenQuery(predicate: QueryPredicate.Type) extends RoutePredicate {
-    override def test(a: Route): Boolean = predicate.test(a.query)
-  }
+  final case class WhenQuery(predicate: QueryPredicate.Type) extends RouteTests
 
-  final case class WhenState(p: StatePredicate.Type) extends RoutePredicate {
-    override def test(a: Route): Boolean = p.test(a.state)
-  }
+  final case class WhenState(predicate: StatePredicate.Type) extends RouteTests
 
-  implicit val routePredicateDecoder: Decoder[RoutePredicate] = anyOf[RoutePredicate](
+  implicit val decoder: Decoder[RouteTests] = anyOf[RouteTests](
     Decoder[MethodPredicate.Type].at("method").map(WhenMethod),
     Decoder[PathPredicate.Type].at("path").map(WhenPath),
     Decoder[QueryPredicate.Type].at("query").map(WhenQuery),
     Decoder[StatePredicate.Type].at("state").map(WhenState)
   )
 
-  implicit val routePredicateEncoder: Encoder[RoutePredicate] = Encoder.instance {
+  implicit val encoder: Encoder[RouteTests] = Encoder.instance {
     case WhenMethod(predicate) => Json.obj("method" := predicate)
-    case WhenPath(predicate)   => Json.obj("path" := predicate)
-    case WhenQuery(predicate)  => Json.obj("query" := predicate)
-    case WhenState(predicate)  => Json.obj("state" := predicate)
+    case WhenPath(predicate) => Json.obj("path" := predicate)
+    case WhenQuery(predicate) => Json.obj("query" := predicate)
+    case WhenState(predicate) => Json.obj("state" := predicate)
   }
 
-  implicit val routePredicateEq: Eq[RoutePredicate] = Eq.instance {
+  implicit val eq: Eq[RouteTests] = Eq.instance {
     case (WhenMethod(a), WhenMethod(b)) => a === b
-    case (WhenPath(a), WhenPath(b))     => a === b
-    case (WhenQuery(a), WhenQuery(b))   => a === b
-    case (WhenState(a), WhenState(b))   => a === b
-    case _                              => false
+    case (WhenPath(a), WhenPath(b)) => a === b
+    case (WhenQuery(a), WhenQuery(b)) => a === b
+    case (WhenState(a), WhenState(b)) => a === b
+    case _ => false
   }
 
-  override type Base = Fixed[Route] |+| UsingEq[Route] |+| RoutePredicate
-
-  override implicit val baseDecoder: Decoder[Base] = GeneratedDecoder[Base].decoder
-  override implicit val baseEncoder: Encoder[Base] = GeneratedEncoder[Base].encoder
-
-  val always: Type = wrap {
-    lhs[Base, UsingCombinators[Route, Base]](
-      lhs[Fixed[Route] |+| UsingEq[Route], RoutePredicate](
-        lhs[Fixed[Route], UsingEq[Route]](Fixed.Always[Route]())
-      )
-    )
+  implicit val predicateChecker: PredicateChecker[Route, RouteTests] = (predicate, in) => predicate match {
+    case WhenMethod(predicate) => in.method.satisfies(predicate)
+    case WhenPath(predicate) => in.path.satisfies(predicate)
+    case WhenQuery(predicate) => in.query.satisfies(predicate)
+    case WhenState(predicate) => in.state.satisfies(predicate)
   }
+}
 
-  val never: Type = wrap {
-    lhs[Base, UsingCombinators[Route, Base]](
-      lhs[Fixed[Route] |+| UsingEq[Route], RoutePredicate](
-        lhs[Fixed[Route], UsingEq[Route]](Fixed.Never[Route]())
-      )
-    )
-  }
+object RoutePredicate       extends PredicateWrapper[Route, Fixed[Route] |+| UsingEq[Route] |+| RouteTests] {
+  val always: Type =
+    wrap(Fixed.Always[Route]().upcast.first[UsingEq[Route]].first[RouteTests].first[UsingCombinators[Base]])
 
-  def is(sentinel: Route): Type = wrap {
-    lhs[Base, UsingCombinators[Route, Base]](
-      lhs[Fixed[Route] |+| UsingEq[Route], RoutePredicate](
-        rhs[Fixed[Route], UsingEq[Route]](UsingEq.Is[Route](sentinel))
-      )
-    )
-  }
+  val never: Type =
+    wrap(Fixed.Never[Route]().upcast.first[UsingEq[Route]].first[RouteTests].first[UsingCombinators[Base]])
 
-  def in(sentinels: List[Route]): Type = wrap {
-    lhs[Base, UsingCombinators[Route, Base]](
-      lhs[Fixed[Route] |+| UsingEq[Route], RoutePredicate](
-        rhs[Fixed[Route], UsingEq[Route]](UsingEq.In[Route](sentinels))
-      )
-    )
-  }
+  def is(sentinel: Route): Type =
+    wrap(UsingEq.Is[Route](sentinel).upcast.second[Fixed[Route]].first[RouteTests].first[UsingCombinators[Base]])
 
-  def method(p: MethodPredicate.Type): Type = wrap {
-    lhs[Base, UsingCombinators[Route, Base]](
-      rhs[Fixed[Route] |+| UsingEq[Route], RoutePredicate](WhenMethod(p))
-    )
-  }
+  def in(sentinels: List[Route]): Type =
+    wrap(UsingEq.In[Route](sentinels).upcast.second[Fixed[Route]].first[RouteTests].first[UsingCombinators[Base]])
 
-  def path(p: PathPredicate.Type): Type = wrap {
-    lhs[Base, UsingCombinators[Route, Base]](
-      rhs[Fixed[Route] |+| UsingEq[Route], RoutePredicate](WhenPath(p))
-    )
-  }
+  def method(p: MethodPredicate.Type): Type =
+    wrap(WhenMethod(p).upcast.second[Fixed[Route] |+| UsingEq[Route]].first[UsingCombinators[Base]])
 
-  def query(p: QueryPredicate.Type): Type = wrap {
-    lhs[Base, UsingCombinators[Route, Base]](
-      rhs[Fixed[Route] |+| UsingEq[Route], RoutePredicate](WhenQuery(p))
-    )
-  }
+  def path(p: PathPredicate.Type): Type =
+    wrap(WhenPath(p).upcast.second[Fixed[Route] |+| UsingEq[Route]].first[UsingCombinators[Base]])
+
+  def query(p: QueryPredicate.Type): Type =
+    wrap(WhenQuery(p).upcast.second[Fixed[Route] |+| UsingEq[Route]].first[UsingCombinators[Base]])
 
   def state(p: StatePredicate.Type): Type =
-    WhenState(p)
-      .routePredicate
-      .rhs[Fixed[Route] |+| UsingEq[Route]]
-      .lhs[UsingCombinators[Route, Base]]
-      .wrapped
+    wrap(WhenState(p).upcast.second[Fixed[Route] |+| UsingEq[Route]].first[UsingCombinators[Base]])
 }

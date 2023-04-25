@@ -1,148 +1,34 @@
 package peschke.mock4s.predicates
 
-import cats.Eq
 import cats.syntax.all._
-import io.circe.syntax._
+import cats.{Eq, Show}
 import io.circe.{Decoder, Encoder}
-import peschke.mock4s.predicates.Predicate.UsingCombinators
-import peschke.mock4s.utils.Circe._
+import peschke.mock4s.algebras.PredicateChecker
+import peschke.mock4s.models.|+|
+import peschke.mock4s.models.|+|.syntax.LiftOps
 
-trait PredicateWrapper[T] { self =>
-  type |+|[L <: Predicate[T], R <: Predicate[T]] = PredicateWrapper.Or[T, L, R]
-  val |+| = PredicateWrapper.Or
+abstract class PredicateWrapper[T, B: Decoder: Encoder](implicit baseChecker: PredicateChecker[T, B])
+  extends supertagged.NewType[B |+| UsingCombinators[B]] {
+  type Base = B
 
-  type Base <: Predicate[T]
-  type Combined = Base |+| UsingCombinators[T, Base]
-  type Type = Combined with self.type
+  def wrap(c: Base |+| UsingCombinators[Base]): Type = apply(c)
 
-  implicit def baseDecoder: Decoder[Base]
-  implicit def baseEncoder: Encoder[Base]
-
-  def combinedDecoder: Decoder[Combined] = GeneratedDecoder[Combined].decoder
-  def combinedEncoder: Encoder[Combined] = GeneratedEncoder[Combined].encoder
-
-  def wrap(c: Combined): Type = c.asInstanceOf[Type]
-  def unwrap(ct: Type): Combined = ct
-
-  def lhs[L <: Predicate[T], R <: Predicate[T]](l: L): L |+| R = PredicateWrapper.Lhs(l)
-  def rhs[L <: Predicate[T], R <: Predicate[T]](r: R): L |+| R = PredicateWrapper.Rhs(r)
-
-  def liftToCombinators(c: Combined): UsingCombinators[T, Base] =
+  private def liftToCombinators(c: Base |+| UsingCombinators[Base]): UsingCombinators[Base] =
     c.fold(UsingCombinators.Wrapped(_), identity)
 
-  def not(p: Type): Type = wrap {
-    rhs[Base, UsingCombinators[T, Base]](UsingCombinators.Not[T, Base](liftToCombinators(p)))
-  }
+  def not(p: Type): Type = wrap(UsingCombinators.Not[Base](liftToCombinators(raw(p))).upcast.second[Base])
 
-  def forall(px: List[Type]): Type = wrap {
-    rhs[Base, UsingCombinators[T, Base]](UsingCombinators.ForAll[T, Base](px.map(liftToCombinators)))
-  }
+  def forall(px: List[Type]): Type =
+    wrap(UsingCombinators.ForAll[Base](px.map(raw).map(liftToCombinators)).upcast.second[Base])
 
-  def exists(px: List[Type]): Type = wrap {
-    rhs[Base, UsingCombinators[T, Base]](UsingCombinators.Exists[T, Base](px.map(liftToCombinators)))
-  }
+  def exists(px: List[Type]): Type =
+    wrap(UsingCombinators.Exists[Base](px.map(raw).map(liftToCombinators)).upcast.second[Base])
 
-  implicit lazy val decoder: Decoder[Type] = combinedDecoder.map(wrap)
-  implicit lazy val encoder: Encoder[Type] = combinedEncoder.contramap(unwrap)
+  implicit lazy val decoder: Decoder[Type] = Decoder[Base |+| UsingCombinators[Base]].map(apply(_))
+  implicit lazy val encoder: Encoder[Type] = Encoder[Base |+| UsingCombinators[Base]].contramap(raw)
+  implicit lazy val checker: PredicateChecker[T, Type] =
+    PredicateChecker[T, Base |+| UsingCombinators[Base]].contraMapPredicate(raw)
 
-  implicit def eq(implicit C: Eq[Combined]): Eq[Type] = Eq.by(unwrap)
-
-  implicit final class LiftOps[P <: Predicate[T]](private val p: P) {
-    def lhs[R <: Predicate[T]]: P |+| R = self.lhs(p)
-    def rhs[L <: Predicate[T]]: L |+| P = self.rhs(p)
-  }
-
-  implicit final class WrapOps(private val c: Combined) {
-    def wrapped: Type = self.wrap(c)
-  }
-
-  implicit final class UnwrapOps(private val t: Type) {
-    def unwrapped: Combined = self.unwrap(t)
-  }
-}
-object PredicateWrapper   {
-  sealed abstract class Or[T, L <: Predicate[T], R <: Predicate[T]] extends Predicate[T] {
-    def fold[A](lf: L => A, rf: R => A): A
-  }
-
-  trait GeneratedFromNoProvidedInstances {
-    implicit def fallbackDecoder[
-        T,
-        L <: Predicate[T]: GeneratedDecoder,
-        R <: Predicate[T]: GeneratedDecoder
-    ]: GeneratedDecoder[Or[T, L, R]] = Or.mergeTwoDecoders(GeneratedDecoder[L].decoder, GeneratedDecoder[R].decoder)
-
-    implicit def fallbackEncoder[
-        T,
-        L <: Predicate[T]: GeneratedEncoder,
-        R <: Predicate[T]: GeneratedEncoder
-    ]: GeneratedEncoder[Or[T, L, R]] = Or.mergeTwoEncoders(GeneratedEncoder[L].encoder, GeneratedEncoder[R].encoder)
-  }
-
-  trait GeneratedFromProvidedLeftInstances extends GeneratedFromNoProvidedInstances {
-    implicit def rightOnlyDecoder[
-        T,
-        L <: Predicate[T]: Decoder,
-        R <: Predicate[T]: GeneratedDecoder
-    ]: GeneratedDecoder[Or[T, L, R]] = Or.mergeTwoDecoders(Decoder[L], GeneratedDecoder[R].decoder)
-
-    implicit def leftOnlyEncoder[
-        T,
-        L <: Predicate[T]: Encoder,
-        R <: Predicate[T]: GeneratedEncoder
-    ]: GeneratedEncoder[Or[T, L, R]] = Or.mergeTwoEncoders(Encoder[L], GeneratedEncoder[R].encoder)
-  }
-
-  trait GeneratedFromProvidedRightInstance extends GeneratedFromProvidedLeftInstances {
-    implicit def leftOnlyDecoder[
-        T,
-        L <: Predicate[T]: GeneratedDecoder,
-        R <: Predicate[T]: Decoder
-    ]: GeneratedDecoder[Or[T, L, R]] = Or.mergeTwoDecoders(GeneratedDecoder[L].decoder, Decoder[R])
-
-    implicit def leftOnlyEncoder[
-        T,
-        L <: Predicate[T]: GeneratedEncoder,
-        R <: Predicate[T]: Encoder
-    ]: GeneratedEncoder[Or[T, L, R]] = Or.mergeTwoEncoders(GeneratedEncoder[L].encoder, Encoder[R])
-  }
-
-  trait GeneratedFromTwoProvidedInstances extends GeneratedFromProvidedRightInstance {
-    implicit def mergeTwoDecoders[
-        T,
-        L <: Predicate[T]: Decoder,
-        R <: Predicate[T]: Decoder
-    ]: GeneratedDecoder[Or[T, L, R]] = GeneratedDecoder(
-      anyOf[Or[T, L, R]](
-        Decoder[L].map(Lhs[T, L, R]).widen,
-        Decoder[R].map(Rhs[T, L, R]).widen
-      )
-    )
-
-    implicit def mergeTwoEncoders[
-        T,
-        L <: Predicate[T]: Encoder,
-        R <: Predicate[T]: Encoder
-    ]: GeneratedEncoder[Or[T, L, R]] = GeneratedEncoder(Encoder.instance[Or[T, L, R]](_.fold(_.asJson, _.asJson)))
-  }
-
-  object Or extends GeneratedFromTwoProvidedInstances {
-    implicit def eq[T, L <: Predicate[T]: Eq, R <: Predicate[T]: Eq]: Eq[Or[T, L, R]] = Eq.instance {
-      case (Lhs(a), Lhs(b)) => a === b
-      case (Rhs(a), Rhs(b)) => a === b
-      case _                => false
-    }
-  }
-
-  final case class Lhs[T, L <: Predicate[T], R <: Predicate[T]](l: L) extends Or[T, L, R] {
-    override def test(t: T): Boolean = l.test(t)
-
-    override def fold[A](lf: L => A, rf: R => A): A = lf(l)
-  }
-
-  final case class Rhs[T, L <: Predicate[T], R <: Predicate[T]](r: R) extends Or[T, L, R] {
-    override def test(t: T): Boolean = r.test(t)
-
-    override def fold[A](lf: L => A, rf: R => A): A = rf(r)
-  }
+  implicit def eq(implicit C: Eq[Base |+| UsingCombinators[Base]]): Eq[Type] = Eq.by(raw)
+  implicit def show(implicit C: Show[Base |+| UsingCombinators[Base]]): Show[Type] = Show.show(raw(_).show)
 }
