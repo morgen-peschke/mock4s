@@ -18,6 +18,8 @@ trait StateManager[F[_]] {
   def clear(key: MockState.Key): F[Unit]
 
   def reset: F[Unit]
+
+  def clearAll: F[Unit]
 }
 
 object StateManager {
@@ -54,7 +56,9 @@ object StateManager {
               MockState.State(MockState.State.raw(state).removed(key))
             }
 
-          override def reset: F[Unit] = stateData.set(MockState.State(Map.empty[MockState.Key, Json]))
+          override def reset: F[Unit] = stateData.set(initialState)
+
+          override def clearAll: F[Unit] = stateData.set(MockState.State(Map.empty[MockState.Key, Json]))
         }
       }
 }

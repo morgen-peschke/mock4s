@@ -93,29 +93,33 @@ object AdminRoutes {
       case DELETE -> RootPath / "mocks" / MockName(mockName) =>
         MocksManager[F]
           .deleteMock(mockName)
-          .flatMap(_ => Ok(Json.obj("deleted" := mockName)))
+          .flatMap(_ => Accepted(Json.obj("deleted" := mockName)))
 
       case DELETE -> RootPath / "mocks" / MockName(mockName) / "actions" / ActionName(actionName) =>
         MocksManager[F]
           .deleteAction(mockName, actionName)
-          .flatMap(_ => Ok(Json.obj("deleted" := actionName)))
+          .flatMap(_ => Accepted(Json.obj("deleted" := actionName)))
 
-      case GET -> RootPath / "state" => StateManager[F].retrieve.flatMap(Ok(_))
+      case GET -> RootPath / "state" / "all" => StateManager[F].retrieve.flatMap(Ok(_))
 
-      case GET -> RootPath / "state" / key =>
+      case GET -> RootPath / "state" / "keys" / key =>
         StateManager[F].get(MockState.Key(key)).flatMap(Ok(_))
 
-      case req @  POST -> RootPath / "state" / key =>
+      case req @  POST -> RootPath / "state" / "keys" / key =>
         req.as[Json]
           .flatMap(StateManager[F].update(MockState.Key(key), _))
-          .flatMap(_ => Accepted())
+          .flatMap(_ => Accepted(Json.obj("updated" := key)))
 
-      case DELETE -> RootPath / "state" / key =>
+      case DELETE -> RootPath / "state" / "keys" / key =>
         StateManager[F]
           .clear(MockState.Key(key))
-          .flatMap(_ => Accepted())
+          .flatMap(_ => Accepted(Json.obj("deleted" := key)))
 
-      case DELETE -> RootPath / "state" => StateManager[F].reset.flatMap(_ => Accepted())
+      case DELETE -> RootPath / "state" / "keys" =>
+        StateManager[F].clearAll.flatMap(_ => Accepted(Json.obj("deleted-all" := true)))
+
+      case POST -> RootPath / "state" / "reset" =>
+        StateManager[F].reset.flatMap(_ => Ok(Json.obj("reset" := true)))
     }
   }
 }
