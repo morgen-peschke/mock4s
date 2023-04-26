@@ -1,5 +1,6 @@
 package peschke.mock4s.predicates
 
+import cats.data.Chain
 import io.circe.Json
 import munit.ScalaCheckSuite
 import org.scalacheck.Gen
@@ -10,44 +11,44 @@ import peschke.mock4s.JsonGens.{configs, terminals, withPath, withoutPath}
 import peschke.mock4s.MUnitCats
 import peschke.mock4s.models.JsonPath.Root
 import peschke.mock4s.models.JsonPath.Segment.DownArray
-import peschke.mock4s.predicates.JsonPredicate.{always, in, is, never}
+import peschke.mock4s.predicates.JsonPredicate.{always, atPath, in, is, never, string}
 
 class JsonPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts with MUnitCats {
   private val jsons = Gen.resize(5, configs.flatMap(_.mkGen))
 
-  property("always() should accept any JSON") {
+  property("always should accept any JSON") {
     forAll(jsons) { json =>
       assertAccepts(always, json)
     }
   }
 
-  property("always(path) should accept any JSON that has something at that path") {
+  property("atPath(path, always) should accept any JSON that has something at that path") {
     forAll(withPath(jsons)) { case (json, path, _) =>
-      assertAccepts(always(path), json)
+      assertAccepts(atPath(path, always), json)
     }
   }
 
-  property("always(path) should reject any JSON that has nothing at that path") {
+  property("atPath(path, always) should reject any JSON that has nothing at that path") {
     forAll(withoutPath(jsons)) { case (json, path, _) =>
-      assertRejects(always(path), json)
+      assertRejects(atPath(path, always), json)
     }
   }
 
-  property("never() should reject all JSON") {
+  property("never should reject all JSON") {
     forAll(jsons) {
       assertRejects(never, _)
     }
   }
 
-  property("never(path) should accept json without something at that path") {
+  property("atPath(path, never) should reject json without something at that path") {
     forAll(withoutPath(jsons)) { case (json, path, _) =>
-      assertAccepts(never(path), json)
+      assertRejects(atPath(path, never), json)
     }
   }
 
-  property("never(path) should reject json with something at that path") {
+  property("atPath(path, never) should reject json with something at that path") {
     forAllNoShrink(withPath(jsons)) { case (json, path, _) =>
-      assertRejects(never(path), json)
+      assertRejects(atPath(path, never), json)
     }
   }
 
@@ -57,19 +58,19 @@ class JsonPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts with 
     }
   }
 
-  property("is(path, _) should reject json with nothing at that path") {
+  property("atPath(path, is(_)) should reject json with nothing at that path") {
     forAll(withoutPath(jsons)) { case (json, path, oldValue) =>
-      assertRejects(is(path, oldValue), json)
+      assertRejects(atPath(path, is(oldValue)), json)
     }
   }
 
-  property("is(path, _) should accept if the JSON value returned by the path matches") {
+  property("atPath(path, is(_)) should accept if the JSON value returned by the path matches") {
     forAll(withPath(jsons)) { case (json, path, sentinel) =>
-      assertAccepts(is(path, sentinel), json)
+      assertAccepts(atPath(path, is(sentinel)), json)
     }
   }
 
-  test("is(path, _) should accept if any of the JSON values returned by the path matches") {
+  test("atPath(path, is(_)) should accept if any of the JSON values returned by the path matches") {
     val input = Json.obj(
       "a" := Json.arr(
         Json.obj("b" := 1.asJson),
@@ -77,10 +78,10 @@ class JsonPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts with 
         Json.obj("b" := 3.asJson)
       )
     )
-    assertAccepts(is(Root / "a" / DownArray / "b", 1.asJson), input)
-    assertAccepts(is(Root / "a" / DownArray / "b", 2.asJson), input)
-    assertAccepts(is(Root / "a" / DownArray / "b", 3.asJson), input)
-    assertRejects(is(Root / "a" / DownArray / "b", 4.asJson), input)
+    assertAccepts(atPath(Root / "a" / DownArray / "b", is(1.asJson)), input)
+    assertAccepts(atPath(Root / "a" / DownArray / "b", is(2.asJson)), input)
+    assertAccepts(atPath(Root / "a" / DownArray / "b", is(3.asJson)), input)
+    assertRejects(atPath(Root / "a" / DownArray / "b", is(4.asJson)), input)
   }
 
   test("in(_) should accept if the JSON value is one of the specified values") {
@@ -99,7 +100,7 @@ class JsonPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts with 
     }
   }
 
-  property("in(path, _) should reject json with nothing at that path") {
+  property("atPath(path, in(_)) should reject json with nothing at that path") {
     val gen = for {
       (json, path, sentinel) <- withoutPath(jsons)
       jsonShuffleKey         <- arbitrary[Int]
@@ -111,11 +112,11 @@ class JsonPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts with 
       (json, path, sentinels)
     }
     forAll(gen) { case (json, path, sentinels) =>
-      assertRejects(in(path, sentinels), json)
+      assertRejects(atPath(path, in(sentinels)), json)
     }
   }
 
-  test("in(path, _) should accept if the JSON value returned by the path is one of the specified values") {
+  test("atPath(path, in(_)) should accept if the JSON value returned by the path is one of the specified values") {
     val gen = for {
       (json, path, sentinel) <- withPath(jsons)
       jsonShuffleKey         <- arbitrary[Int]
@@ -127,11 +128,11 @@ class JsonPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts with 
       (json, path, sentinels)
     }
     forAll(gen) { case (json, path, sentinels) =>
-      assertAccepts(in(path, sentinels), json)
+      assertAccepts(atPath(path, in(sentinels)), json)
     }
   }
 
-  test("in(path, _) should accept if any of the JSON values returned by the path is one of the specified values") {
+  test("atPath(path, in(_)) should accept if any of the JSON values returned by the path is one of the specified values") {
     val input = Json.obj(
       "a" := Json.arr(
         Json.obj("b" := 1.asJson),
@@ -139,9 +140,47 @@ class JsonPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts with 
         Json.obj("b" := 3.asJson)
       )
     )
-    assertAccepts(in(Root / "a" / DownArray / "b", 1.asJson :: 20.asJson :: Nil), input)
-    assertAccepts(in(Root / "a" / DownArray / "b", 2.asJson :: 20.asJson :: Nil), input)
-    assertAccepts(in(Root / "a" / DownArray / "b", 3.asJson :: 20.asJson :: Nil), input)
-    assertRejects(in(Root / "a" / DownArray / "b", 4.asJson :: 20.asJson :: Nil), input)
+    assertAccepts(atPath(Root / "a" / DownArray / "b", in(1.asJson :: 20.asJson :: Nil)), input)
+    assertAccepts(atPath(Root / "a" / DownArray / "b", in(2.asJson :: 20.asJson :: Nil)), input)
+    assertAccepts(atPath(Root / "a" / DownArray / "b", in(3.asJson :: 20.asJson :: Nil)), input)
+    assertRejects(atPath(Root / "a" / DownArray / "b", in(4.asJson :: 20.asJson :: Nil)), input)
+  }
+
+  test("string(_) should accept if the JSON value is a string that satisfies the predicate") {
+    forAll { str: String =>
+      assertAccepts(string(StringPredicate.is(str)), Json.fromString(str))
+    }
+  }
+
+  test("atPath(path, string(_)) should accept if the JSON value is a string that satisfies the predicate") {
+    forAll(withPath(jsons), arbitrary[String]) { case ((json, path, _), str) =>
+      val updatedJson = assertSome {
+        path.hCursors(json).map(_.withFocus(_ => Json.fromString(str)).root.focus).flatMap(Chain.fromOption).headOption
+      }
+      assertAccepts(atPath(path, string(StringPredicate.is(str))), updatedJson)
+    }
+  }
+
+  test("atPath(path, string(_)) should reject if the JSON value is a string that does not satisfy the predicate") {
+    forAll(withPath(jsons), arbitrary[String]) { case ((json, path, _), str) =>
+      val updatedJson = assertSome {
+        path.hCursors(json).map(_.withFocus(_ => Json.fromString(str)).root.focus).flatMap(Chain.fromOption).headOption
+      }
+      assertRejects(atPath(path, string(StringPredicate.is(s"$str-"))), updatedJson)
+    }
+  }
+
+  test("atPath(path, string(_)) should reject if the JSON value is not a string") {
+    forAll(
+      withPath(jsons),
+      arbitrary[String],
+      jsons
+    ) { case ((json, path, _), str, replacement) =>
+      val replacementJson = if (replacement.isString) Json.Null else replacement
+      val updatedJson = assertSome {
+        path.hCursors(json).map(_.withFocus(_ => replacementJson).root.focus).flatMap(Chain.fromOption).headOption
+      }
+      assertRejects(atPath(path, string(StringPredicate.is(str))), updatedJson)
+    }
   }
 }

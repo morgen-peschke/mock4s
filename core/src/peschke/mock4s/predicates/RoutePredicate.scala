@@ -4,7 +4,6 @@ import cats.Eq
 import cats.syntax.all._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
-import org.http4s.{Method, Query}
 import peschke.mock4s.algebras.PredicateChecker
 import peschke.mock4s.algebras.PredicateChecker.syntax._
 import peschke.mock4s.models.ParsedRequest.Route
@@ -12,9 +11,6 @@ import peschke.mock4s.models.|+|
 import peschke.mock4s.models.|+|.syntax._
 import peschke.mock4s.predicates.RouteTests.{WhenMethod, WhenPath, WhenQuery, WhenState}
 import peschke.mock4s.utils.Circe._
-
-object MethodPredicate extends SimpleEq[Method]
-object QueryPredicate extends SimpleEq[Query]
 
 sealed trait RouteTests {
   def upcast: RouteTests = this

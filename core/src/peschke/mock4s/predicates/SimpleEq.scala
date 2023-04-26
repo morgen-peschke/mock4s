@@ -2,8 +2,10 @@ package peschke.mock4s.predicates
 
 import cats.Eq
 import io.circe.{Decoder, Encoder}
+import org.http4s.{Method, Query}
 import peschke.mock4s.models.|+|
 import peschke.mock4s.models.|+|.syntax._
+import peschke.mock4s.utils.Circe._
 
 abstract class SimpleEq[A: Eq: Decoder: Encoder] extends PredicateWrapper[A, Fixed[A] |+| UsingEq[A]] { self =>
   val always: Type = wrap {
@@ -35,3 +37,5 @@ abstract class SimpleEq[A: Eq: Decoder: Encoder] extends PredicateWrapper[A, Fix
   }
 }
 
+object MethodPredicate extends SimpleEq[Method]
+object QueryPredicate extends SimpleEq[Query]

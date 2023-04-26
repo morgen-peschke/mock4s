@@ -215,16 +215,18 @@ STRING_PREDICATE := FIXED
 
 #### JSON Predicate Schema :: `JSON_PREDICATE`
 ```
-UNPATHED_JSON_TEST := FIXED 
-                    | EQ(io.circe.Json) 
-                    | ORDER(io.circe.Json)
-PATHED_JSON_TEST := { 
-    "path": '"' JSON_PATH '"',
-    "when": UNPATHED_JSON_TEST
-}
-JSON_TESTS := PATHED_JSON_TEST | UNPATHED_JSON_TEST
+NUMBER_PREDICATE := FIXED 
+                  | EQ(scala.math.BigDecimal) 
+                  | ORDER(scala.math.BigDecimal)
+                  
+JSON_TESTS := { "string": STRING_PREDCIATE }
+            | { "number": NUMBER_PREDICATE }
+            | { "at": '"' JSON_PATH '"', "when": JSON_PREDICATE }
 
-JSON_PREDICATE := JSON_TESTS | COMBINATORS(JSON_PREDICATE)
+JSON_PREDICATE := FIXED 
+                | EQ(io.circe.Jsno) 
+                | JSON_TESTS 
+                | COMBINATORS(JSON_PREDICATE)
 ```
 
 #### State Predicate Schema :: `STATE_PREDICATE`

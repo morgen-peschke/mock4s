@@ -56,3 +56,5 @@ abstract class SimpleOrder[A: Decoder: Encoder: PartialOrder]
     UsingOrder.GreaterThanEq[A](sentinel).upcast.second[Fixed[A] |+| UsingEq[A]].first[UsingCombinators[Base]]
   }
 }
+
+object BigDecimalPredicate extends SimpleOrder[BigDecimal]
