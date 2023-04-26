@@ -2,14 +2,19 @@ package peschke.mock4s.predicates
 
 import cats.Eq
 import cats.syntax.all._
+import io.circe.Decoder
+import io.circe.Encoder
+import io.circe.Json
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, Json}
 import peschke.mock4s.algebras.PredicateChecker
 import peschke.mock4s.algebras.PredicateChecker.syntax._
 import peschke.mock4s.models.ParsedRequest.Route
 import peschke.mock4s.models.|+|
 import peschke.mock4s.models.|+|.syntax._
-import peschke.mock4s.predicates.RouteTests.{WhenMethod, WhenPath, WhenQuery, WhenState}
+import peschke.mock4s.predicates.RouteTests.WhenMethod
+import peschke.mock4s.predicates.RouteTests.WhenPath
+import peschke.mock4s.predicates.RouteTests.WhenQuery
+import peschke.mock4s.predicates.RouteTests.WhenState
 import peschke.mock4s.utils.Circe._
 
 sealed trait RouteTests {
@@ -34,28 +39,29 @@ object RouteTests {
 
   implicit val encoder: Encoder[RouteTests] = Encoder.instance {
     case WhenMethod(predicate) => Json.obj("method" := predicate)
-    case WhenPath(predicate) => Json.obj("path" := predicate)
-    case WhenQuery(predicate) => Json.obj("query" := predicate)
-    case WhenState(predicate) => Json.obj("state" := predicate)
+    case WhenPath(predicate)   => Json.obj("path" := predicate)
+    case WhenQuery(predicate)  => Json.obj("query" := predicate)
+    case WhenState(predicate)  => Json.obj("state" := predicate)
   }
 
   implicit val eq: Eq[RouteTests] = Eq.instance {
     case (WhenMethod(a), WhenMethod(b)) => a === b
-    case (WhenPath(a), WhenPath(b)) => a === b
-    case (WhenQuery(a), WhenQuery(b)) => a === b
-    case (WhenState(a), WhenState(b)) => a === b
-    case _ => false
+    case (WhenPath(a), WhenPath(b))     => a === b
+    case (WhenQuery(a), WhenQuery(b))   => a === b
+    case (WhenState(a), WhenState(b))   => a === b
+    case _                              => false
   }
 
-  implicit val predicateChecker: PredicateChecker[Route, RouteTests] = (predicate, in) => predicate match {
-    case WhenMethod(predicate) => in.method.satisfies(predicate)
-    case WhenPath(predicate) => in.path.satisfies(predicate)
-    case WhenQuery(predicate) => in.query.satisfies(predicate)
-    case WhenState(predicate) => in.state.satisfies(predicate)
-  }
+  implicit val predicateChecker: PredicateChecker[Route, RouteTests] = (predicate, in) =>
+    predicate match {
+      case WhenMethod(predicate) => in.method.satisfies(predicate)
+      case WhenPath(predicate)   => in.path.satisfies(predicate)
+      case WhenQuery(predicate)  => in.query.satisfies(predicate)
+      case WhenState(predicate)  => in.state.satisfies(predicate)
+    }
 }
 
-object RoutePredicate       extends PredicateWrapper[Route, Fixed[Route] |+| UsingEq[Route] |+| RouteTests] {
+object RoutePredicate extends PredicateWrapper[Route, Fixed[Route] |+| UsingEq[Route] |+| RouteTests] {
   val always: Type =
     wrap(Fixed.Always[Route]().upcast.first[UsingEq[Route]].first[RouteTests].first[UsingCombinators[Base]])
 

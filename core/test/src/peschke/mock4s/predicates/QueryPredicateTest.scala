@@ -9,8 +9,8 @@ import org.scalacheck.Prop._
 
 class QueryPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts {
   implicit val queryShow: Show[Query] = Show.show {
-    case Query.Empty => s"Query[Empty](${Query.Empty.renderString})"
-    case raw: Query.Raw => s"Query[Raw](${raw.renderString} -> ${raw.pairs})"
+    case Query.Empty          => s"Query[Empty](${Query.Empty.renderString})"
+    case raw: Query.Raw       => s"Query[Raw](${raw.renderString} -> ${raw.pairs})"
     case parsed: Query.Parsed => s"Query[Parsed](${parsed.renderString} -> ${parsed.pairs})"
   }
   def queries(params: Gen[(String, Option[String])]): Gen[Query] = Gen.sized { size =>
@@ -24,7 +24,7 @@ class QueryPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts {
   def queriesWithParam(names: Gen[String], values: Gen[Option[String]]): Gen[(Query, String)] = Gen.sized { size =>
     for {
       query <- Gen.resize(size, queries)
-      name <- names
+      name  <- names
       value <- values
     } yield (query :+ (name -> value)) -> name
   }
@@ -119,4 +119,3 @@ class QueryPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts {
     }
   }
 }
-

@@ -2,13 +2,20 @@ package peschke.mock4s.predicates
 
 import cats.Eq
 import cats.syntax.all._
+import io.circe.Decoder
+import io.circe.Encoder
+import io.circe.Json
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, Json}
 import org.http4s.Uri.Path
 import peschke.mock4s.algebras.PredicateChecker
-import peschke.mock4s.models.{Sanitized, |+|}
+import peschke.mock4s.models.Sanitized
+import peschke.mock4s.models.|+|
 import peschke.mock4s.models.|+|.syntax.LiftOps
-import peschke.mock4s.predicates.PathTest.{Contains, EndsWith, In, Is, StartsWith}
+import peschke.mock4s.predicates.PathTest.Contains
+import peschke.mock4s.predicates.PathTest.EndsWith
+import peschke.mock4s.predicates.PathTest.In
+import peschke.mock4s.predicates.PathTest.Is
+import peschke.mock4s.predicates.PathTest.StartsWith
 import peschke.mock4s.utils.Circe._
 
 sealed trait PathTest {
@@ -115,32 +122,34 @@ object PathTest {
   )
 
   implicit val encoder: Encoder[PathTest] = Encoder.instance {
-    case pp: Is => pp.asJson
-    case pp: In => pp.asJson
+    case pp: Is         => pp.asJson
+    case pp: In         => pp.asJson
     case pp: StartsWith => pp.asJson
-    case pp: EndsWith => pp.asJson
-    case pp: Contains => pp.asJson
+    case pp: EndsWith   => pp.asJson
+    case pp: Contains   => pp.asJson
   }
 
   implicit val eq: Eq[PathTest] = Eq.instance {
-    case (a: Is, b: Is) => a === b
-    case (a: In, b: In) => a === b
+    case (a: Is, b: Is)                 => a === b
+    case (a: In, b: In)                 => a === b
     case (a: StartsWith, b: StartsWith) => a === b
-    case (a: EndsWith, b: EndsWith) => a === b
-    case (a: Contains, b: Contains) => a === b
-    case _ => false
+    case (a: EndsWith, b: EndsWith)     => a === b
+    case (a: Contains, b: Contains)     => a === b
+    case _                              => false
   }
 
-  implicit val checker: PredicateChecker[Path, PathTest] = (predicate, in) => predicate match {
-    case Is(sentinel) => sentinel.fold(_.equivalentTo(in), _ === in)
-    case In(sentinels) => sentinels.fold(_.exists(_.equivalentTo(in)), _.exists(_ === in))
-    case StartsWith(prefix) => prefix.fold(_.starts(in), p => p.absolute === in.absolute && in.startsWith(p))
-    case EndsWith(suffix) => suffix.fold(
-      _.ends(in),
-      p => in.endsWithSlash === p.endsWithSlash && in.segments.endsWith(p.segments)
-    )
-    case Contains(subPath) => subPath.fold(_.containedBy(in), p => in.segments.containsSlice(p.segments))
-  }
+  implicit val checker: PredicateChecker[Path, PathTest] = (predicate, in) =>
+    predicate match {
+      case Is(sentinel)       => sentinel.fold(_.equivalentTo(in), _ === in)
+      case In(sentinels)      => sentinels.fold(_.exists(_.equivalentTo(in)), _.exists(_ === in))
+      case StartsWith(prefix) => prefix.fold(_.starts(in), p => p.absolute === in.absolute && in.startsWith(p))
+      case EndsWith(suffix)   =>
+        suffix.fold(
+          _.ends(in),
+          p => in.endsWithSlash === p.endsWithSlash && in.segments.endsWith(p.segments)
+        )
+      case Contains(subPath)  => subPath.fold(_.containedBy(in), p => in.segments.containsSlice(p.segments))
+    }
 }
 
 object PathPredicate extends PredicateWrapper[Path, Fixed[Path] |+| PathTest] {

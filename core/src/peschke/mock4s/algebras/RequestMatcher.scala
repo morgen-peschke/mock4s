@@ -5,11 +5,15 @@ import cats.data.Chain
 import cats.syntax.all._
 import io.circe.Json
 import io.circe.syntax._
-import org.http4s.{Request, Status}
+import org.http4s.Request
+import org.http4s.Status
 import org.typelevel.log4cats.LoggerFactory
 import peschke.mock4s.algebras.PredicateChecker.syntax._
-import peschke.mock4s.models.MockDefinition.{Action, MockName}
-import peschke.mock4s.models.{Body, ParsedRequest, ResponseDef}
+import peschke.mock4s.models.Body
+import peschke.mock4s.models.MockDefinition.Action
+import peschke.mock4s.models.MockDefinition.MockName
+import peschke.mock4s.models.ParsedRequest
+import peschke.mock4s.models.ResponseDef
 import peschke.mock4s.utils.Circe._
 
 trait RequestMatcher[F[_]] {
@@ -25,7 +29,7 @@ object RequestMatcher      {
       private def findMockDefinition(parsedRequest: ParsedRequest): F[Option[MockName]] = {
         MocksManager[F].listAllRoutes.flatMap { mocks =>
           mocks.find(_._2.satisfiedBy(parsedRequest.route)) match {
-            case None => logger.warn("Unable to find matching mock definition").as(none[MockName])
+            case None                => logger.warn("Unable to find matching mock definition").as(none[MockName])
             case Some((mockName, _)) =>
               logger.info(show"Matched mock definition: $mockName").as(mockName.some)
           }
@@ -72,7 +76,7 @@ object RequestMatcher      {
                   logger
                     .warn(show"Matched against a route for a mock that no longer exists: $lookupFailed")
                     .as(none[Action])
-                case Right(actions) => findAction(actions, parsedRequest)
+                case Right(actions)     => findAction(actions, parsedRequest)
               })
               .map(_.fold(notFound(request, parsedRequest))(_.respondWith))
           }

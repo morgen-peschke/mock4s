@@ -5,9 +5,11 @@ import io.circe.syntax._
 import munit.ScalaCheckSuite
 import org.scalacheck.Gen
 import org.scalacheck.Prop._
+import peschke.mock4s.JsonGens
+import peschke.mock4s.MUnitCirce
 import peschke.mock4s.models.MockState
-import peschke.mock4s.predicates.StatePredicate.{isCleared, isSet}
-import peschke.mock4s.{JsonGens, MUnitCirce}
+import peschke.mock4s.predicates.StatePredicate.isCleared
+import peschke.mock4s.predicates.StatePredicate.isSet
 
 class StatePredicateJsonTest extends ScalaCheckSuite with MUnitCirce {
   property("IsCleared") {
@@ -20,7 +22,7 @@ class StatePredicateJsonTest extends ScalaCheckSuite with MUnitCirce {
   }
 
   property("IsSet") {
-    forAll(Gen.alphaNumStr, JsonGens.scalars.map(JsonPredicate.is)){ (key, value) =>
+    forAll(Gen.alphaNumStr, JsonGens.scalars.map(JsonPredicate.is)) { (key, value) =>
       assertCodec(
         isSet(MockState.Key(key), value),
         Json.obj("set" := Json.obj(key := value))

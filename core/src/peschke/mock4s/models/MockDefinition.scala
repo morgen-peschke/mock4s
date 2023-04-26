@@ -1,13 +1,21 @@
 package peschke.mock4s.models
 
-import cats.data.{Chain, NonEmptyChain}
-import cats.{Eq, Order, Show}
+import cats.Eq
+import cats.Order
+import cats.Show
+import cats.data.Chain
+import cats.data.NonEmptyChain
 import cats.syntax.all._
-import io.circe.syntax._
-import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import io.circe.CursorOp.DownN
-import peschke.mock4s.models.MockDefinition.{Action, MockName}
-import peschke.mock4s.predicates.{RequestPredicate, RoutePredicate}
+import io.circe.Decoder
+import io.circe.DecodingFailure
+import io.circe.Encoder
+import io.circe.Json
+import io.circe.syntax._
+import peschke.mock4s.models.MockDefinition.Action
+import peschke.mock4s.models.MockDefinition.MockName
+import peschke.mock4s.predicates.RequestPredicate
+import peschke.mock4s.predicates.RoutePredicate
 import peschke.mock4s.utils.Circe._
 
 final case class MockDefinition(name: MockName, route: RoutePredicate.Type, actions: Chain[Action])
@@ -34,10 +42,7 @@ object MockDefinition {
   }
   type ActionName = ActionName.Type
 
-  final case class Action(name: ActionName,
-                          when: RequestPredicate.Type,
-                          respondWith: ResponseDef,
-                         )
+  final case class Action(name: ActionName, when: RequestPredicate.Type, respondWith: ResponseDef)
 
   implicit val actionDecoder: Decoder[Action] = accumulatingDecoder { c =>
     (
@@ -55,7 +60,7 @@ object MockDefinition {
     )
   }
 
-  implicit val actionEq: Eq[Action] = Eq.instance { (a,b) =>
+  implicit val actionEq: Eq[Action] = Eq.instance { (a, b) =>
     a.name === b.name && a.when === b.when && a.respondWith === b.respondWith
   }
 
@@ -74,9 +79,10 @@ object MockDefinition {
         }
         .andThen { actions =>
           val errors: Chain[DecodingFailure] =
-            Chain.fromSeq(actions.groupBy(_._1.name).toSeq)
+            Chain
+              .fromSeq(actions.groupBy(_._1.name).toSeq)
               .flatMap {
-                case (_, Chain(_)) => Chain.empty[DecodingFailure]
+                case (_, Chain(_))      => Chain.empty[DecodingFailure]
                 case (name, duplicates) =>
                   duplicates.toChain.map { case (_, i) =>
                     DecodingFailure(show"Duplicate action name: $name", DownN(i) :: actionsC.history)

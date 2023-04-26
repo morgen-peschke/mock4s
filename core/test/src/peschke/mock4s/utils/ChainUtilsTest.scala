@@ -4,14 +4,15 @@ import cats.Eq
 import cats.data.Chain
 import cats.syntax.all._
 import munit.ScalaCheckSuite
-import peschke.mock4s.MUnitCats
-import peschke.mock4s.utils.ChainUtils.{Identify, Mock4sChainOps}
-import org.scalacheck.Gen
 import org.scalacheck.Arbitrary.arbitrary
+import org.scalacheck.Gen
 import org.scalacheck.Prop._
+import peschke.mock4s.MUnitCats
+import peschke.mock4s.utils.ChainUtils.Identify
+import peschke.mock4s.utils.ChainUtils.Mock4sChainOps
 
 class ChainUtilsTest extends ScalaCheckSuite with MUnitCats {
-  implicit def identifyTuple[A,B]: Identify[(A,B), A] = _._1
+  implicit def identifyTuple[A, B]: Identify[(A, B), A] = _._1
 
   test("updateFirstBy should update only the first matching element") {
     assertEq(

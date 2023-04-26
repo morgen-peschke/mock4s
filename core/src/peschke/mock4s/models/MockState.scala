@@ -1,6 +1,7 @@
 package peschke.mock4s.models
 
-import cats.{Eq, Show}
+import cats.Eq
+import cats.Show
 import io.circe._
 
 object MockState {

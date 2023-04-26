@@ -1,21 +1,24 @@
 package peschke.mock4s.algebras
 
 import cats.syntax.all._
-import io.circe.{Json, JsonNumber, JsonObject, Printer}
+import io.circe.Json
+import io.circe.JsonNumber
+import io.circe.JsonObject
+import io.circe.Printer
 
 import scala.annotation.switch
 
-trait JsonFormatter {
+trait JsonFormatter  {
   def format(json: Json): String
 }
 object JsonFormatter {
-  object IndentDelta extends supertagged.NewType[Int]
+  object IndentDelta  extends supertagged.NewType[Int]
   type IndentDelta = IndentDelta.Type
-  object MaxWidth extends supertagged.NewType[Int]
+  object MaxWidth     extends supertagged.NewType[Int]
   type MaxWidth = MaxWidth.Type
   object TightObjects extends supertagged.NewType[Boolean]
   type TightObjects = TightObjects.Type
-  object TightArrays extends supertagged.NewType[Boolean]
+  object TightArrays  extends supertagged.NewType[Boolean]
   type TightArrays = TightArrays.Type
 
   val compact: JsonFormatter = new UsingCircePrinter(Printer.noSpaces)
@@ -27,11 +30,9 @@ object JsonFormatter {
     override def format(json: Json): String = json.printWith(printer)
   }
 
-  def terse(indent: IndentDelta,
-            sortKeys: Boolean,
-            maxWidth: MaxWidth,
-            tightArrays: TightArrays,
-            tightObjects: TightObjects): JsonFormatter =
+  def terse
+    (indent: IndentDelta, sortKeys: Boolean, maxWidth: MaxWidth, tightArrays: TightArrays, tightObjects: TightObjects)
+    : JsonFormatter =
     new JsonFormatter {
       override def format(json: Json): String =
         writeJson(json, FormatterState.empty(maxWidth)).builder.result()
@@ -70,31 +71,33 @@ object JsonFormatter {
         override def onObject(value: JsonObject): Boolean = isSimpleObject(value)
       }
 
-      private def arrayOrObjectWouldFitInOneLine(parentState: FormatterState,
-                                                 formattedElements: Vector[FormatterState],
-                                                 isArray: Boolean): Boolean = {
+      private def arrayOrObjectWouldFitInOneLine
+        (parentState: FormatterState, formattedElements: Vector[FormatterState], isArray: Boolean)
+        : Boolean = {
         val maxLengthReached =
-          (2 * (if (isArray) arrayBraceWidth else objectCurlyWidth)) + // Open + Close Braces/Curlies
+          (2 * (if (isArray) arrayBraceWidth else objectCurlyWidth)) +                      // Open + Close Braces/Curlies
             formattedElements.foldLeft(parentState.currentIndent)(_ + _.builder.length()) + // Element lengths
-            (formattedElements.length * 2) // Commas and spacers
+            (formattedElements.length * 2)                                                  // Commas and spacers
         val shorterThanMaxLength = maxLengthReached < MaxWidth.raw(parentState.maxWidth)
         val noNewlinesTriggered = formattedElements.forall(!_.isMultiLine)
         shorterThanMaxLength && noNewlinesTriggered
       }
 
-      private def arrayWouldFitInOneLine(parentState: FormatterState,
-                                         formattedElements: Vector[FormatterState]): Boolean =
+      private def arrayWouldFitInOneLine
+        (parentState: FormatterState, formattedElements: Vector[FormatterState])
+        : Boolean =
         arrayOrObjectWouldFitInOneLine(parentState, formattedElements, isArray = true)
 
-      private def objectWouldFitInOneLine(parentState: FormatterState,
-                                         formattedElements: Vector[FormatterState]): Boolean =
+      private def objectWouldFitInOneLine
+        (parentState: FormatterState, formattedElements: Vector[FormatterState])
+        : Boolean =
         arrayOrObjectWouldFitInOneLine(parentState, formattedElements, isArray = false)
 
       private def commaSeparated(state: FormatterState, elements: Vector[FormatterState]): FormatterState =
         elements match {
           case first +: rest =>
             rest.foldLeft(state.concat(first))(_.append(", ").concat(_))
-          case _ => elements.foldLeft(state)(_ concat _)
+          case _             => elements.foldLeft(state)(_ concat _)
         }
 
       private def commaSeparatedIndented(state: FormatterState, elements: Vector[FormatterState]): FormatterState =
@@ -103,7 +106,7 @@ object JsonFormatter {
             rest.foldLeft(state.append("\n").appendN(first.currentIndent, ' ').concat(first)) { (accum, element) =>
               accum.append(",\n").appendN(element.currentIndent, ' ').concat(element)
             }
-          case _ => elements.foldLeft(state)(_ concat _)
+          case _             => elements.foldLeft(state)(_ concat _)
         }
 
       private def writeJson(json: Json, state: FormatterState): FormatterState =
@@ -133,12 +136,11 @@ object JsonFormatter {
       private def writeObject(obj: JsonObject, state: FormatterState): FormatterState =
         if (obj.isEmpty) state.append("{}")
         else {
-          val elements = (if (sortKeys) obj.toVector.sortBy(_._1) else obj.toVector).map {
-            case (key, value) =>
-              val entryState = state.indentAndRecurse(indent)
-              writeString(key, entryState)
-              entryState.append(": ")
-              writeJson(value, entryState)
+          val elements = (if (sortKeys) obj.toVector.sortBy(_._1) else obj.toVector).map { case (key, value) =>
+            val entryState = state.indentAndRecurse(indent)
+            writeString(key, entryState)
+            entryState.append(": ")
+            writeJson(value, entryState)
           }
           if (isSimpleObject(obj) && objectWouldFitInOneLine(state, elements))
             commaSeparated(state.append(openObject), elements).append(closeObject)
@@ -162,6 +164,10 @@ object JsonFormatter {
         state.append(value.toString)
 
       // Taken nearly verbatim from io.circe.Printer.PrintingFolder#onString
+      @SuppressWarnings(Array(
+        "scalafix:DisableSyntax.var",
+        "scalafix:DisableSyntax.while"
+      ))
       private def writeString(value: String, state: FormatterState): FormatterState = {
         def toHex(nibble: Int): Char = (nibble + (if (nibble >= 10) 87 else 48)).toChar
 
@@ -175,18 +181,18 @@ object JsonFormatter {
           val c = value.charAt(i)
 
           val esc = (c: @switch) match {
-            case '"' => '"'
+            case '"'  => '"'
             case '\\' => '\\'
             case '\b' => 'b'
             case '\f' => 'f'
             case '\n' => 'n'
             case '\r' => 'r'
             case '\t' => 't'
-            case _ => (if (Character.isISOControl(c)) 1 else 0).toChar
+            case _    => (if (Character.isISOControl(c)) 1 else 0).toChar
           }
-          if (esc != 0) {
+          if (esc =!= 0) {
             builder.append(value, offset, i).append('\\')
-            if (esc != 1) builder.append(esc)
+            if (esc =!= 1) builder.append(esc)
             else
               builder
                 .append('u')
@@ -206,10 +212,8 @@ object JsonFormatter {
       }
     }
 
-  private final case class FormatterState(builder: StringBuilder,
-                                          currentIndent: Int,
-                                          maxWidth: MaxWidth,
-                                          isMultiLine: Boolean) {
+  private final case class FormatterState
+    (builder: StringBuilder, currentIndent: Int, maxWidth: MaxWidth, isMultiLine: Boolean) {
     def append(str: String): FormatterState = {
       builder.appendAll(str)
       this

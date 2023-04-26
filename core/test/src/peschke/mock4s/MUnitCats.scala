@@ -1,11 +1,16 @@
 package peschke.mock4s
 
-import cats.data.{Chain, NonEmptyChain, Validated}
+import cats.Eq
+import cats.Show
+import cats.data.Chain
+import cats.data.NonEmptyChain
+import cats.data.Validated
 import cats.syntax.all._
-import cats.{Eq, Show}
+import munit.Assertions
+import munit.Location
 import munit.internal.console.StackTraces
-import munit.internal.difflib.{ComparisonFailExceptionHandler, Diffs}
-import munit.{Assertions, Location}
+import munit.internal.difflib.ComparisonFailExceptionHandler
+import munit.internal.difflib.Diffs
 import org.scalacheck.Gen
 
 trait MUnitCats { self: Assertions =>
@@ -43,6 +48,7 @@ trait MUnitCats { self: Assertions =>
       fail("Expected Some(_), but was None")
     }
 
+  @SuppressWarnings(Array("DisableSyntax.defaultArgs"))
   def assertEq[A: Eq: Show]
     (obtained:          A, expected: A, clue: Any = "values are not the same")
     (implicit location: Location)

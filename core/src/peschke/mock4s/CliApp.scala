@@ -1,7 +1,9 @@
 package peschke.mock4s
 
+import cats.effect.ExitCode
+import cats.effect.IO
+import cats.effect.IOApp
 import cats.syntax.all._
-import cats.effect.{ExitCode, IO, IOApp}
 import org.typelevel.log4cats.LoggerFactory
 import org.typelevel.log4cats.slf4j.Slf4jFactory
 import peschke.mock4s.algebras.JsonSourceResolver

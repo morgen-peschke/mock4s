@@ -7,8 +7,10 @@ import org.http4s.Method
 import org.typelevel.ci._
 import peschke.mock4s.MUnitCirce
 import peschke.mock4s.models.MockState
-import peschke.mock4s.predicates.RequestPredicate.{body, route, state}
 import peschke.mock4s.predicates.MethodPredicate
+import peschke.mock4s.predicates.RequestPredicate.body
+import peschke.mock4s.predicates.RequestPredicate.route
+import peschke.mock4s.predicates.RequestPredicate.state
 
 class RequestPredicateJsonTest extends FunSuite with MUnitCirce {
   test("WhenRoute") {

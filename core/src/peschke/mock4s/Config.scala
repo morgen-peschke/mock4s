@@ -4,16 +4,24 @@ import cats.MonadThrow
 import cats.effect.kernel.Async
 import cats.effect.std.Console
 import cats.syntax.all._
-import ciris.{ConfigDecoder, ConfigError}
+import ciris.ConfigDecoder
+import ciris.ConfigError
 import com.comcast.ip4s
-import com.comcast.ip4s.{Host, Ipv6Address, Port}
-import com.monovore.decline.{Argument, Command, Opts}
+import com.comcast.ip4s.Host
+import com.comcast.ip4s.Ipv6Address
+import com.comcast.ip4s.Port
+import com.monovore.decline.Argument
+import com.monovore.decline.Command
+import com.monovore.decline.Opts
 import io.circe.parser
 import org.http4s.Uri
 import peschke.mock4s.algebras.JsonSourceResolver
-import peschke.mock4s.models.{JsonSource, Settings}
+import peschke.mock4s.models.JsonSource
+import peschke.mock4s.models.Settings
 
-import java.nio.file.{InvalidPathException, Path => NioPath, Paths => NioPaths}
+import java.nio.file.InvalidPathException
+import java.nio.file.{Path => NioPath}
+import java.nio.file.{Paths => NioPaths}
 
 final case class Config(host: Host, port: Port, settings: Settings, settingsRoot: Uri.Path)
 object Config {
@@ -24,7 +32,7 @@ object Config {
   private val DefaultHost: Ipv6Address = ip4s.Ipv6Address.fromBigInt(BigInt(1))
   private val DefaultSettingsRoot: Uri.Path = Uri.Path.Root / "mock4s"
 
-  def parse[F[_]: MonadThrow: Console : JsonSourceResolver](args: Seq[String]): Loader[F] = new Loader[F] {
+  def parse[F[_]: MonadThrow: Console: JsonSourceResolver](args: Seq[String]): Loader[F] = new Loader[F] {
     implicit val hostArg: Argument[Host] = Argument.from("host") { raw =>
       Host.fromString(raw).toValidNel(s"Unable to parse host from $raw")
     }

@@ -1,9 +1,16 @@
 package peschke.mock4s.utils
 
-import cats.data.{Chain, NonEmptyChain, Validated}
+import cats.Defer
+import cats.Eq
+import cats.Order
+import cats.PartialOrder
+import cats.Semigroup
+import cats.data.Chain
+import cats.data.NonEmptyChain
+import cats.data.Validated
 import cats.syntax.all._
-import cats.{Defer, Eq, Order, PartialOrder, Semigroup}
-import io.circe.Decoder.{AccumulatingResult, Result}
+import io.circe.Decoder.AccumulatingResult
+import io.circe.Decoder.Result
 import io.circe._
 import io.circe.syntax._
 import org.http4s.Uri.Path
@@ -71,8 +78,8 @@ object Circe {
       val vectorPA = cats.instances.vector.catsKernelStdPartialOrderForVector(recurse)
       val fieldsPA = cats
         .instances.vector.catsKernelStdPartialOrderForVector(
-        cats.instances.tuple.catsKernelStdPartialOrderForTuple2(stringPA, recurse)
-      )
+          cats.instances.tuple.catsKernelStdPartialOrderForTuple2(stringPA, recurse)
+        )
       val objectPA = PartialOrder.from[JsonObject] { (a, b) =>
         fieldsPA.partialCompare(a.toVector.sortBy(_._1), b.toVector.sortBy(_._1))
       }
@@ -157,7 +164,8 @@ object Circe {
           tryDecodeAccumulating(c)
 
         override def tryDecodeAccumulating(c: ACursor): AccumulatingResult[A] =
-          lhs.tryDecodeAccumulating(c)
+          lhs
+            .tryDecodeAccumulating(c)
             .findValid(rhs.tryDecodeAccumulating(c))
             .leftMap(_.distinct)
 
@@ -234,17 +242,17 @@ object Circe {
     def mapN[C](f: (A, B) => C): C = f(key, value)
     def json(implicit KE: KeyEncoder[A], VE: Encoder[B]): Json = JsonObjectTuple.json(key, value)
   }
-  object JsonObjectTuple {
-    def json[A: KeyEncoder,B: Encoder](key: A, value: B): Json = Json.obj(key := value)
-    implicit def decoder[A: KeyDecoder, B: Decoder]: Decoder[JsonObjectTuple[A,B]] = accumulatingDecoder { c =>
+  object JsonObjectTuple                                   {
+    def json[A: KeyEncoder, B: Encoder](key: A, value: B): Json = Json.obj(key := value)
+    implicit def decoder[A: KeyDecoder, B: Decoder]: Decoder[JsonObjectTuple[A, B]] = accumulatingDecoder { c =>
       c.asAcc[Map[A, B]].andThen { map =>
         map.toList match {
           case (key, value) :: Nil => JsonObjectTuple(key, value).valid
-          case _ => DecodingFailure("Expected a map with a single key/value pair", c.history).invalidNel
+          case _                   => DecodingFailure("Expected a map with a single key/value pair", c.history).invalidNel
         }
       }
     }
     implicit def encoder[A: KeyEncoder, B: Encoder]: Encoder[JsonObjectTuple[A, B]] =
-      Encoder.instance[JsonObjectTuple[A,B]](_.json)
+      Encoder.instance[JsonObjectTuple[A, B]](_.json)
   }
 }

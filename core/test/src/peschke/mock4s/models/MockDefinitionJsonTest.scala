@@ -4,11 +4,19 @@ import cats.syntax.all._
 import io.circe.Json
 import io.circe.syntax._
 import munit.FunSuite
-import org.http4s.{Method, Status}
+import org.http4s.Method
+import org.http4s.Status
 import org.typelevel.ci._
 import peschke.mock4s.MUnitCirce
-import peschke.mock4s.models.MockDefinition.{Action, ActionName}
-import peschke.mock4s.predicates.{HeaderPredicate, JsonPredicate, MethodPredicate, RequestPredicate, RoutePredicate, StatePredicate, StringPredicate}
+import peschke.mock4s.models.MockDefinition.Action
+import peschke.mock4s.models.MockDefinition.ActionName
+import peschke.mock4s.predicates.HeaderPredicate
+import peschke.mock4s.predicates.JsonPredicate
+import peschke.mock4s.predicates.MethodPredicate
+import peschke.mock4s.predicates.RequestPredicate
+import peschke.mock4s.predicates.RoutePredicate
+import peschke.mock4s.predicates.StatePredicate
+import peschke.mock4s.predicates.StringPredicate
 
 class MockDefinitionJsonTest extends FunSuite with MUnitCirce {
   test("Action codec (simple)") {
@@ -25,11 +33,11 @@ class MockDefinitionJsonTest extends FunSuite with MUnitCirce {
         )
       ),
       Json.obj(
-        "name" := "name of action",
-        "when" := "any",
+        "name"         := "name of action",
+        "when"         := "any",
         "respond-with" := Json.obj(
           "status" := 200,
-          "body" := "empty"
+          "body"   := "empty"
         )
       )
     )
@@ -39,13 +47,17 @@ class MockDefinitionJsonTest extends FunSuite with MUnitCirce {
     assertCodec(
       Action(
         ActionName("name of action"),
-        RequestPredicate.forall(List(
-          RequestPredicate.route(RoutePredicate.method(MethodPredicate.is(Method.GET))),
-          RequestPredicate.state(StatePredicate.isSet(MockState.Key("state-key"), JsonPredicate.is(1.asJson))),
-          RequestPredicate.headers(List(
-            HeaderPredicate.header(ci"Accept", StringPredicate.is("application/json"))
-          ))
-        )),
+        RequestPredicate.forall(
+          List(
+            RequestPredicate.route(RoutePredicate.method(MethodPredicate.is(Method.GET))),
+            RequestPredicate.state(StatePredicate.isSet(MockState.Key("state-key"), JsonPredicate.is(1.asJson))),
+            RequestPredicate.headers(
+              List(
+                HeaderPredicate.header(ci"Accept", StringPredicate.is("application/json"))
+              )
+            )
+          )
+        ),
         ResponseDef(
           status = Status.Ok,
           httpVersionOpt = none,
@@ -55,17 +67,21 @@ class MockDefinitionJsonTest extends FunSuite with MUnitCirce {
         )
       ),
       Json.obj(
-        "name" := "name of action",
-        "when" := Json.obj("forall" := List(
-          Json.obj("route" := Json.obj("method" := Json.obj("is" := "GET"))),
-          Json.obj("state" := Json.obj("set" := Json.obj("state-key" := Json.obj("is" := 1)))),
-          Json.obj("headers" := List(
-            Json.obj("Accept" := Json.obj("is":= "application/json"))
-          ))
-        )),
+        "name"         := "name of action",
+        "when"         := Json.obj(
+          "forall" := List(
+            Json.obj("route" := Json.obj("method" := Json.obj("is" := "GET"))),
+            Json.obj("state" := Json.obj("set" := Json.obj("state-key" := Json.obj("is" := 1)))),
+            Json.obj(
+              "headers"      := List(
+                Json.obj("Accept" := Json.obj("is" := "application/json"))
+              )
+            )
+          )
+        ),
         "respond-with" := Json.obj(
           "status" := 200,
-          "body" := "empty"
+          "body"   := "empty"
         )
       )
     )

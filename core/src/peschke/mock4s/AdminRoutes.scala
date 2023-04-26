@@ -2,16 +2,22 @@ package peschke.mock4s
 
 import cats.effect.kernel.Concurrent
 import cats.syntax.all._
+import io.circe.Decoder
+import io.circe.Json
 import io.circe.syntax._
-import io.circe.{Decoder, Json}
 import org.http4s._
 import org.http4s.circe.CirceEntityDecoder.circeEntityDecoder
 import org.http4s.circe.CirceEntityEncoder.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
-import peschke.mock4s.algebras.{MocksManager, StateManager}
-import peschke.mock4s.algebras.MocksManager.{InsertLocation, ManagerError}
-import peschke.mock4s.models.{MockDefinition, MockState}
-import peschke.mock4s.models.MockDefinition.{Action, ActionName, MockName}
+import peschke.mock4s.algebras.MocksManager
+import peschke.mock4s.algebras.MocksManager.InsertLocation
+import peschke.mock4s.algebras.MocksManager.ManagerError
+import peschke.mock4s.algebras.StateManager
+import peschke.mock4s.models.MockDefinition
+import peschke.mock4s.models.MockDefinition.Action
+import peschke.mock4s.models.MockDefinition.ActionName
+import peschke.mock4s.models.MockDefinition.MockName
+import peschke.mock4s.models.MockState
 import peschke.mock4s.utils.Circe._
 
 object AdminRoutes {
@@ -33,7 +39,6 @@ object AdminRoutes {
     ).mapN(AddAction)
   }
 
-
   def default[F[_]: Concurrent: MocksManager: StateManager](endpointRoot: Uri.Path): HttpRoutes[F] = {
     val dsl = new Http4sDsl[F] {}
     import dsl._
@@ -41,26 +46,34 @@ object AdminRoutes {
 
     def managerErrorResponse(error: ManagerError): F[Response[F]] =
       error match {
-        case ManagerError.MockNotFound(mockName) =>
-          NotFound(Json.obj(
-            "error" := "No mock found with that name",
-            "details" := Json.obj("mock" := mockName)
-          ))
-        case ManagerError.ActionNotFound(mockName, actionName) =>
-          NotFound(Json.obj(
-            "error" := "No action found with that name",
-            "details" := Json.obj("mock" := mockName, "action" := actionName)
-          ))
-        case ManagerError.DuplicateMockFound(mockName) =>
-          BadRequest(Json.obj(
-            "error" := "Mock with this name already exists",
-            "details" := Json.obj("mock" := mockName)
-          ))
+        case ManagerError.MockNotFound(mockName)                     =>
+          NotFound(
+            Json.obj(
+              "error"   := "No mock found with that name",
+              "details" := Json.obj("mock" := mockName)
+            )
+          )
+        case ManagerError.ActionNotFound(mockName, actionName)       =>
+          NotFound(
+            Json.obj(
+              "error"   := "No action found with that name",
+              "details" := Json.obj("mock" := mockName, "action" := actionName)
+            )
+          )
+        case ManagerError.DuplicateMockFound(mockName)               =>
+          BadRequest(
+            Json.obj(
+              "error"   := "Mock with this name already exists",
+              "details" := Json.obj("mock" := mockName)
+            )
+          )
         case ManagerError.DuplicateActionFound(mockName, actionName) =>
-          BadRequest(Json.obj(
-            "error" := "Action with this name already exists",
-            "details" := Json.obj("mock" := mockName, "action" := actionName)
-          ))
+          BadRequest(
+            Json.obj(
+              "error"   := "Action with this name already exists",
+              "details" := Json.obj("mock" := mockName, "action" := actionName)
+            )
+          )
       }
 
     HttpRoutes.of[F] {
@@ -83,7 +96,7 @@ object AdminRoutes {
             .flatMap(_.fold(managerErrorResponse, _ => Created(Json.obj("created" := addMock.mock.name))))
         }
 
-      case req@POST -> RootPath / "mocks" / MockName(mockName) / "actions" =>
+      case req @ POST -> RootPath / "mocks" / MockName(mockName) / "actions" =>
         req.as[AddAction].flatMap { addAction =>
           MocksManager[F]
             .addAction(mockName, addAction.action, addAction.at)
@@ -105,8 +118,9 @@ object AdminRoutes {
       case GET -> RootPath / "state" / "keys" / key =>
         StateManager[F].get(MockState.Key(key)).flatMap(Ok(_))
 
-      case req @  POST -> RootPath / "state" / "keys" / key =>
-        req.as[Json]
+      case req @ POST -> RootPath / "state" / "keys" / key =>
+        req
+          .as[Json]
           .flatMap(StateManager[F].update(MockState.Key(key), _))
           .flatMap(_ => Accepted(Json.obj("updated" := key)))
 

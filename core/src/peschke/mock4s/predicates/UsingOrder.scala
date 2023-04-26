@@ -1,9 +1,12 @@
 package peschke.mock4s.predicates
 
+import cats.Eq
+import cats.PartialOrder
 import cats.syntax.all._
-import cats.{Eq, PartialOrder}
+import io.circe.Decoder
+import io.circe.Encoder
+import io.circe.Json
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, Json}
 import peschke.mock4s.algebras.PredicateChecker
 import peschke.mock4s.utils.Circe._
 
@@ -15,7 +18,7 @@ object UsingOrder {
   final case class LessThan[A](sentinel: A) extends UsingOrder[A]
 
   object LessThan {
-    implicit def decoder[A: Decoder ]: Decoder[LessThan[A]] = Decoder[A].map(LessThan[A]).at("<")
+    implicit def decoder[A: Decoder]: Decoder[LessThan[A]] = Decoder[A].map(LessThan[A]).at("<")
 
     implicit def encoder[A: Encoder]: Encoder[LessThan[A]] =
       Encoder.instance(in => Json.obj("<" := in.sentinel))
@@ -65,26 +68,26 @@ object UsingOrder {
   )
 
   implicit def encoder[A: Encoder]: Encoder[UsingOrder[A]] = Encoder.instance {
-    case p@LessThan(_) => p.asJson
-    case p@LessThanEq(_) => p.asJson
-    case p@GreaterThan(_) => p.asJson
-    case p@GreaterThanEq(_) => p.asJson
+    case p @ LessThan(_)      => p.asJson
+    case p @ LessThanEq(_)    => p.asJson
+    case p @ GreaterThan(_)   => p.asJson
+    case p @ GreaterThanEq(_) => p.asJson
   }
 
   implicit def eq[A: Eq]: Eq[UsingOrder[A]] = Eq.instance {
-    case (a: LessThan[A], b: LessThan[A]) => a === b
-    case (a: LessThanEq[A], b: LessThanEq[A]) => a === b
-    case (a: GreaterThan[A], b: GreaterThan[A]) => a === b
+    case (a: LessThan[A], b: LessThan[A])           => a === b
+    case (a: LessThanEq[A], b: LessThanEq[A])       => a === b
+    case (a: GreaterThan[A], b: GreaterThan[A])     => a === b
     case (a: GreaterThanEq[A], b: GreaterThanEq[A]) => a === b
-    case _ => false
+    case _                                          => false
   }
 
   implicit def checker[A: PartialOrder]: PredicateChecker[A, UsingOrder[A]] =
-    (predicate, in) => predicate match {
-      case LessThan(sentinel) => in < sentinel
-      case LessThanEq(sentinel) => in <= sentinel
-      case GreaterThan(sentinel) => in > sentinel
-      case GreaterThanEq(sentinel) => in >= sentinel
-    }
+    (predicate, in) =>
+      predicate match {
+        case LessThan(sentinel)      => in < sentinel
+        case LessThanEq(sentinel)    => in <= sentinel
+        case GreaterThan(sentinel)   => in > sentinel
+        case GreaterThanEq(sentinel) => in >= sentinel
+      }
 }
-

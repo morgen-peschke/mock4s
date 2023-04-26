@@ -1,12 +1,19 @@
 package peschke.mock4s
 
+import cats.effect.ExitCode
+import cats.effect.IO
+import cats.effect.IOApp
 import cats.effect.std.Console
-import cats.effect.{ExitCode, IO, IOApp}
 import cats.syntax.all._
-import com.monovore.decline.{Command, Opts}
+import com.monovore.decline.Command
+import com.monovore.decline.Opts
 import io.circe.Json
-import peschke.mock4s.algebras.JsonFormatter.{IndentDelta, MaxWidth, TightArrays, TightObjects}
-import peschke.mock4s.algebras.{JsonFormatter, JsonSourceResolver}
+import peschke.mock4s.algebras.JsonFormatter
+import peschke.mock4s.algebras.JsonFormatter.IndentDelta
+import peschke.mock4s.algebras.JsonFormatter.MaxWidth
+import peschke.mock4s.algebras.JsonFormatter.TightArrays
+import peschke.mock4s.algebras.JsonFormatter.TightObjects
+import peschke.mock4s.algebras.JsonSourceResolver
 import peschke.mock4s.models.JsonSource
 
 object FormatJson extends IOApp {
@@ -42,7 +49,7 @@ object FormatJson extends IOApp {
   private val terseFormatterOpt =
     Opts.subcommand[(JsonFormatter, JsonSource)](
       name = "terse",
-      help = s"""|Format attempting to minimize horizontal size by rendering simple parts of JSON in the compact style,
+      help = """|Format attempting to minimize horizontal size by rendering simple parts of JSON in the compact style,
                  |while retaining readability by rendering more complex parts in an indented style""".stripMargin
     ) {
       val maxWidthOpt: Opts[MaxWidth] =
@@ -64,14 +71,16 @@ object FormatJson extends IOApp {
         Opts
           .flag(
             long = "tight-objects",
-            help = """Do not include a space before opening and closing a compact object. Ex '{"key":1}' vs '{ "key":1 }'"""
+            help =
+              """Do not include a space before opening and closing a compact object. Ex '{"key":1}' vs '{ "key":1 }'"""
           )
           .orFalse
           .map(TightObjects(_))
 
-        val tightOpt: Opts[(TightArrays, TightObjects)] =
-          Opts.flag(long = "tight", help = "Alias for both --tight-arrays and --tight-objects")
-            .as(TightArrays(true) -> TightObjects(true))
+      val tightOpt: Opts[(TightArrays, TightObjects)] =
+        Opts
+          .flag(long = "tight", help = "Alias for both --tight-arrays and --tight-objects")
+          .as(TightArrays(true) -> TightObjects(true))
 
       (indentOpt, sortKeysOpt, maxWidthOpt, tightOpt.orElse((tightArraysOpt, tightObjectsOpt).tupled), sourceOpt)
         .mapN { (indent, sortKeys, maxWidth, tightFlags, source) =>
@@ -84,20 +93,21 @@ object FormatJson extends IOApp {
   private val command =
     Command(name = "FormatJson", header = "JSON formatting utility")(formatterOpt)
 
+  @SuppressWarnings(Array("scalafix:DisableSyntax.noPrintln"))
   override def run(args: List[String]): IO[ExitCode] = {
     val jsr = JsonSourceResolver.default[IO]
 
-    command.parse(args).fold(
-      Console[IO].errorln(_).as(ExitCode.Error),
-      {
-        case (formatter, source) =>
+    command
+      .parse(args).fold(
+        Console[IO].errorln(_).as(ExitCode.Error),
+        { case (formatter, source) =>
           jsr
             .resolve[Json](source)
             .map(formatter.format)
             .flatMap(Console[IO].println(_))
             .as(ExitCode.Success)
-      }
-    )
+        }
+      )
 
   }
 }

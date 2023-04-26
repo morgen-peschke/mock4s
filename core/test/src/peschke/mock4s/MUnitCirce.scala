@@ -1,12 +1,16 @@
 package peschke.mock4s
 
 import cats.Eq
-import cats.syntax.all._
 import cats.data.Validated
-import io.circe.{Decoder, Encoder, Json, Printer}
+import cats.syntax.all._
+import io.circe.Decoder
+import io.circe.Encoder
+import io.circe.Json
+import io.circe.Printer
 import munit._
 import munit.internal.console.StackTraces
-import munit.internal.difflib.{ComparisonFailExceptionHandler, Diffs}
+import munit.internal.difflib.ComparisonFailExceptionHandler
+import munit.internal.difflib.Diffs
 import peschke.mock4s.utils.Circe._
 
 import scala.annotation.nowarn
@@ -22,6 +26,7 @@ trait MUnitCirce { self: Assertions =>
     (message: String, _: String, _: String, loc: Location) =>
       failComparison(message, actualObtained, actualExpected)(loc)
 
+  @SuppressWarnings(Array("DisableSyntax.defaultArgs"))
   def assertDecodes[A: Eq: Decoder]
     (json:              Json, expected: A, clue: Any = "decoded values are not the same")
     (implicit location: Location)
@@ -29,7 +34,7 @@ trait MUnitCirce { self: Assertions =>
     StackTraces.dropInside {
       json.hcursor.asAcc[A] match {
         case Validated.Invalid(e)      =>
-          fail(e.mkString_(s"Json did not decode successfully:\n  ", "\n  ", "\n"))(location)
+          fail(e.mkString_("Json did not decode successfully:\n  ", "\n  ", "\n"))(location)
         case Validated.Valid(obtained) =>
           if (expected =!= obtained) {
             Diffs.assertNoDiff(
@@ -58,6 +63,7 @@ trait MUnitCirce { self: Assertions =>
 
   // Macro shenanigans means the compiler thinks `location` isn't used
   @nowarn("cat=unused")
+  @SuppressWarnings(Array("DisableSyntax.defaultArgs"))
   def assertEncodes[A: Eq: Encoder]
     (value:             A, expected: Json, clue: Any = "encoded json are not the same")
     (implicit location: Location)

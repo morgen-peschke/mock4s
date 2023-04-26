@@ -6,7 +6,13 @@ import munit._
 import peschke.mock4s.MUnitCirce
 import peschke.mock4s.models.JsonPath
 import peschke.mock4s.models.JsonPath.Segment.BareField
-import peschke.mock4s.predicates.JsonPredicate.{always, atPath, in, is, never, not, string}
+import peschke.mock4s.predicates.JsonPredicate.always
+import peschke.mock4s.predicates.JsonPredicate.atPath
+import peschke.mock4s.predicates.JsonPredicate.in
+import peschke.mock4s.predicates.JsonPredicate.is
+import peschke.mock4s.predicates.JsonPredicate.never
+import peschke.mock4s.predicates.JsonPredicate.not
+import peschke.mock4s.predicates.JsonPredicate.string
 import peschke.mock4s.predicates.StringPredicate.startsWith
 
 class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
@@ -51,7 +57,7 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
     assertCodec(
       atPath(path, in(5.asJson :: 6.asJson :: Nil)),
       Json.obj(
-        "at" := path,
+        "at"   := path,
         "when" := Json.obj("in" := Json.arr(5.asJson, 6.asJson))
       )
     )
@@ -77,10 +83,10 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
     assertCodec(
       atPath(path, not(atPath(path, is(5.asJson)))),
       Json.obj(
-        "at" := path,
+        "at"   := path,
         "when" := Json.obj(
           "!" := Json.obj(
-            "at" := path,
+            "at"   := path,
             "when" := Json.obj("is" := 5)
           )
         )
@@ -102,4 +108,3 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
     )
   }
 }
-

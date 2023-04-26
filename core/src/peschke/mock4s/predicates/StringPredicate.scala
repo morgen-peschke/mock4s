@@ -1,10 +1,14 @@
 package peschke.mock4s.predicates
 
 import cats.Eq
-import cats.data.{NonEmptyList, Validated}
+import cats.data.NonEmptyList
+import cats.data.Validated
 import cats.syntax.all._
+import io.circe.Decoder
+import io.circe.DecodingFailure
+import io.circe.Encoder
+import io.circe.Json
 import io.circe.syntax._
-import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import peschke.mock4s.algebras.PredicateChecker
 import peschke.mock4s.models.|+|
 import peschke.mock4s.models.|+|.syntax.LiftOps
@@ -68,26 +72,27 @@ object StringTests {
   )
 
   implicit val encoder: Encoder[StringTests] = Encoder.instance {
-    case ssp@StartsWith(_) => ssp.asJson
-    case ssp@EndsWith(_) => ssp.asJson
-    case ssp@Contains(_) => ssp.asJson
-    case ssp@Matches(_) => ssp.asJson
+    case ssp @ StartsWith(_) => ssp.asJson
+    case ssp @ EndsWith(_)   => ssp.asJson
+    case ssp @ Contains(_)   => ssp.asJson
+    case ssp @ Matches(_)    => ssp.asJson
   }
 
   implicit val eq: Eq[StringTests] = Eq.instance {
     case (StartsWith(a), StartsWith(b)) => a === b
-    case (EndsWith(a), EndsWith(b)) => a === b
-    case (Contains(a), Contains(b)) => a === b
-    case (Matches(a), Matches(b)) => a.regex === b.regex
-    case _ => false
+    case (EndsWith(a), EndsWith(b))     => a === b
+    case (Contains(a), Contains(b))     => a === b
+    case (Matches(a), Matches(b))       => a.regex === b.regex
+    case _                              => false
   }
 
-  implicit val checker: PredicateChecker[String, StringTests] = (predicate, in) => predicate match {
-    case StartsWith(prefix) => in.startsWith(prefix)
-    case EndsWith(suffix) => in.endsWith(suffix)
-    case Contains(substring) => in.contains(substring)
-    case Matches(regex) => regex.matches(in)
-  }
+  implicit val checker: PredicateChecker[String, StringTests] = (predicate, in) =>
+    predicate match {
+      case StartsWith(prefix)  => in.startsWith(prefix)
+      case EndsWith(suffix)    => in.endsWith(suffix)
+      case Contains(substring) => in.contains(substring)
+      case Matches(regex)      => regex.matches(in)
+    }
 }
 
 object StringPredicate extends PredicateWrapper[String, StringTests |+| Fixed[String] |+| UsingEq[String]] {
@@ -100,7 +105,8 @@ object StringPredicate extends PredicateWrapper[String, StringTests |+| Fixed[St
   }
 
   val never: Type = wrap {
-    Fixed.Never[String]()
+    Fixed
+      .Never[String]()
       .upcast
       .second[StringTests]
       .first[UsingEq[String]]
@@ -108,50 +114,51 @@ object StringPredicate extends PredicateWrapper[String, StringTests |+| Fixed[St
   }
 
   def is(sentinel: String): Type = wrap {
-    UsingEq.Is(sentinel)
+    UsingEq
+      .Is(sentinel)
       .upcast
       .second[StringTests |+| Fixed[String]]
       .first[UsingCombinators[Base]]
   }
-
 
   def in(sentinels: List[String]): Type = wrap {
-    UsingEq.In(sentinels)
+    UsingEq
+      .In(sentinels)
       .upcast
       .second[StringTests |+| Fixed[String]]
       .first[UsingCombinators[Base]]
   }
 
-
   def startsWith(prefix: String): Type = wrap {
-    StringTests.StartsWith(prefix)
+    StringTests
+      .StartsWith(prefix)
       .upcast
       .first[Fixed[String]]
       .first[UsingEq[String]]
       .first[UsingCombinators[Base]]
   }
-
 
   def endsWith(suffix: String): Type = wrap {
-    StringTests.EndsWith(suffix)
+    StringTests
+      .EndsWith(suffix)
       .upcast
       .first[Fixed[String]]
       .first[UsingEq[String]]
       .first[UsingCombinators[Base]]
   }
-
 
   def contains(substring: String): Type = wrap {
-    StringTests.Contains(substring)
+    StringTests
+      .Contains(substring)
       .upcast
       .first[Fixed[String]]
       .first[UsingEq[String]]
       .first[UsingCombinators[Base]]
   }
 
-
   def matches(regex: Regex): Type = wrap {
-    StringTests.Matches(regex)
+    StringTests
+      .Matches(regex)
       .upcast
       .first[Fixed[String]]
       .first[UsingEq[String]]

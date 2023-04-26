@@ -2,16 +2,24 @@ package peschke.mock4s.predicates
 
 import cats.data.Chain
 import io.circe.Json
+import io.circe.syntax._
 import munit.ScalaCheckSuite
+import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Gen
 import org.scalacheck.Prop._
-import org.scalacheck.Arbitrary.arbitrary
-import io.circe.syntax._
-import peschke.mock4s.JsonGens.{configs, terminals, withPath, withoutPath}
+import peschke.mock4s.JsonGens.configs
+import peschke.mock4s.JsonGens.terminals
+import peschke.mock4s.JsonGens.withPath
+import peschke.mock4s.JsonGens.withoutPath
 import peschke.mock4s.MUnitCats
 import peschke.mock4s.models.JsonPath.Root
 import peschke.mock4s.models.JsonPath.Segment.DownArray
-import peschke.mock4s.predicates.JsonPredicate.{always, atPath, in, is, never, string}
+import peschke.mock4s.predicates.JsonPredicate.always
+import peschke.mock4s.predicates.JsonPredicate.atPath
+import peschke.mock4s.predicates.JsonPredicate.in
+import peschke.mock4s.predicates.JsonPredicate.is
+import peschke.mock4s.predicates.JsonPredicate.never
+import peschke.mock4s.predicates.JsonPredicate.string
 
 class JsonPredicateTest extends ScalaCheckSuite with MUnitPredicateAsserts with MUnitCats {
   private val jsons = Gen.resize(5, configs.flatMap(_.mkGen))

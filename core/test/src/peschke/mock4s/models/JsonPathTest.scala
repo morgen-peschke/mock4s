@@ -7,10 +7,15 @@ import io.circe.syntax._
 import munit.ScalaCheckSuite
 import org.scalacheck.Gen
 import org.scalacheck.Prop._
-import peschke.mock4s.JsonGens.{jsonBooleans, jsonNulls, jsonNumbers, jsonStrings}
+import peschke.mock4s.JsonGens.jsonBooleans
+import peschke.mock4s.JsonGens.jsonNulls
+import peschke.mock4s.JsonGens.jsonNumbers
+import peschke.mock4s.JsonGens.jsonStrings
 import peschke.mock4s.MUnitCats
 import peschke.mock4s.models.JsonPath.Segment
-import peschke.mock4s.models.JsonPath.Segment.{AtIndex, BareField, DownArray}
+import peschke.mock4s.models.JsonPath.Segment.AtIndex
+import peschke.mock4s.models.JsonPath.Segment.BareField
+import peschke.mock4s.models.JsonPath.Segment.DownArray
 import peschke.mock4s.utils.JsonPathParser
 
 class JsonPathTest extends ScalaCheckSuite with MUnitCats {

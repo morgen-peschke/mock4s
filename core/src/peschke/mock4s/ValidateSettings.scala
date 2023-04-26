@@ -1,10 +1,14 @@
 package peschke.mock4s
 
+import cats.effect.ExitCode
+import cats.effect.IO
+import cats.effect.IOApp
 import cats.effect.std.Console
-import cats.effect.{ExitCode, IO, IOApp}
-import com.monovore.decline.{Command, Opts}
+import com.monovore.decline.Command
+import com.monovore.decline.Opts
 import peschke.mock4s.algebras.JsonSourceResolver
-import peschke.mock4s.models.{JsonSource, Settings}
+import peschke.mock4s.models.JsonSource
+import peschke.mock4s.models.Settings
 
 object ValidateSettings extends IOApp {
   private val command =
@@ -12,9 +16,10 @@ object ValidateSettings extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] = {
     val jsr = JsonSourceResolver.default[IO]
-    command.parse(args).fold(
-      Console[IO].errorln(_).as(ExitCode.Error),
-      source => jsr.resolve[Settings](source).as(ExitCode.Success)
-    )
+    command
+      .parse(args).fold(
+        Console[IO].errorln(_).as(ExitCode.Error),
+        source => jsr.resolve[Settings](source).as(ExitCode.Success)
+      )
   }
 }

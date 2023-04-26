@@ -6,10 +6,16 @@ import cats.effect.Ref
 import cats.effect.kernel.Sync
 import cats.syntax.all._
 import io.circe.Decoder
-import peschke.mock4s.algebras.MocksManager.ManagerError.{ActionNotFound, DuplicateActionFound, DuplicateMockFound, MockNotFound}
-import peschke.mock4s.algebras.MocksManager.{InsertLocation, ManagerError}
+import peschke.mock4s.algebras.MocksManager.InsertLocation
+import peschke.mock4s.algebras.MocksManager.ManagerError
+import peschke.mock4s.algebras.MocksManager.ManagerError.ActionNotFound
+import peschke.mock4s.algebras.MocksManager.ManagerError.DuplicateActionFound
+import peschke.mock4s.algebras.MocksManager.ManagerError.DuplicateMockFound
+import peschke.mock4s.algebras.MocksManager.ManagerError.MockNotFound
 import peschke.mock4s.models.MockDefinition
-import peschke.mock4s.models.MockDefinition.{Action, ActionName, MockName}
+import peschke.mock4s.models.MockDefinition.Action
+import peschke.mock4s.models.MockDefinition.ActionName
+import peschke.mock4s.models.MockDefinition.MockName
 import peschke.mock4s.predicates
 import peschke.mock4s.predicates.RoutePredicate
 import peschke.mock4s.utils.ChainUtils._
@@ -44,9 +50,9 @@ object MocksManager {
 
   sealed trait InsertLocation[Anchor]
   object InsertLocation {
-    final case class Start[Anchor]() extends InsertLocation[Anchor]
-    final case class End[Anchor]() extends InsertLocation[Anchor]
-    final case class After[Anchor](anchor: Anchor) extends InsertLocation[Anchor]
+    final case class Start[Anchor]()                extends InsertLocation[Anchor]
+    final case class End[Anchor]()                  extends InsertLocation[Anchor]
+    final case class After[Anchor](anchor: Anchor)  extends InsertLocation[Anchor]
     final case class Before[Anchor](anchor: Anchor) extends InsertLocation[Anchor]
 
     implicit def decoder[Anchor: Decoder]: Decoder[InsertLocation[Anchor]] = anyOf(
@@ -59,9 +65,9 @@ object MocksManager {
 
   sealed trait ManagerError
   object ManagerError {
-    final case class MockNotFound(mockName: MockName) extends ManagerError
-    final case class ActionNotFound(mockName: MockName, actionName: ActionName) extends ManagerError
-    final case class DuplicateMockFound(mockName: MockName) extends ManagerError
+    final case class MockNotFound(mockName: MockName)                                 extends ManagerError
+    final case class ActionNotFound(mockName: MockName, actionName: ActionName)       extends ManagerError
+    final case class DuplicateMockFound(mockName: MockName)                           extends ManagerError
     final case class DuplicateActionFound(mockName: MockName, actionName: ActionName) extends ManagerError
 
     implicit val show: Show[ManagerError] = Show.fromToString
@@ -89,7 +95,8 @@ object MocksManager {
         override def listAllRoutes: F[Chain[(MockName, predicates.RoutePredicate.Type)]] = routesData.get
 
         override def retrieveMock(mockName: MockName): F[Either[ManagerError, MockDefinition]] =
-          routesData.get
+          routesData
+            .get
             .map(_.find(_._1 === mockName))
             .flatMap(_.traverse(retrieveFullMockDefinition))
             .map(_.toRight(MockNotFound(mockName)))
@@ -102,26 +109,28 @@ object MocksManager {
             _.flatMap(_.find(_.name === actionName).toRight[ManagerError](ActionNotFound(mockName, actionName)))
           }
 
-        override def addMock(mock: MockDefinition, location: InsertLocation[MockName]): F[Either[ManagerError, Unit]] = {
+        override def addMock
+          (mock: MockDefinition, location: InsertLocation[MockName])
+          : F[Either[ManagerError, Unit]] = {
           val routeToInsert = mock.name -> mock.route
           val updateRoutes: F[Either[ManagerError, Unit]] =
             routesData.modify { data =>
               if (data.exists(_._1 === mock.name)) data -> DuplicateMockFound(mock.name).asLeft.widen
               else
                 location match {
-                case InsertLocation.Start() => data.prepend(routeToInsert) -> ().asRight
-                case InsertLocation.End() => data.append(routeToInsert) -> ().asRight
-                case InsertLocation.After(anchor) =>
-                  data.insertAfterBy(routeToInsert, anchor) match {
-                    case Some(updated) => updated -> ().asRight
-                    case None => data -> MockNotFound(anchor).asLeft
-                  }
-                case InsertLocation.Before(anchor) =>
-                  data.insertBeforeBy(routeToInsert, anchor) match {
-                    case Some(updated) => updated -> ().asRight
-                    case None => data -> MockNotFound(anchor).asLeft
-                  }
-              }
+                  case InsertLocation.Start()        => data.prepend(routeToInsert) -> ().asRight
+                  case InsertLocation.End()          => data.append(routeToInsert) -> ().asRight
+                  case InsertLocation.After(anchor)  =>
+                    data.insertAfterBy(routeToInsert, anchor) match {
+                      case Some(updated) => updated -> ().asRight
+                      case None          => data -> MockNotFound(anchor).asLeft
+                    }
+                  case InsertLocation.Before(anchor) =>
+                    data.insertBeforeBy(routeToInsert, anchor) match {
+                      case Some(updated) => updated -> ().asRight
+                      case None          => data -> MockNotFound(anchor).asLeft
+                    }
+                }
             }
 
           updateRoutes.flatMap(_.traverse(_ => actionsData.replace(mock.name, mock.actions)))
@@ -135,27 +144,27 @@ object MocksManager {
 
         override def updateMock(mock: MockDefinition): F[Unit] =
           actionsData.replace(mock.name, mock.actions) >>
-          routesData.update { routes =>
-            routes.updateFirstBy(mock.name)(_ => mock.name -> mock.route).getOrElse(routes)
-          }
+            routesData.update { routes =>
+              routes.updateFirstBy(mock.name)(_ => mock.name -> mock.route).getOrElse(routes)
+            }
 
-        override def addAction(mockName: MockName,
-                               action: Action,
-                               location: InsertLocation[ActionName]): F[Either[ManagerError, Unit]] =
+        override def addAction
+          (mockName: MockName, action: Action, location: InsertLocation[ActionName])
+          : F[Either[ManagerError, Unit]] =
           actionsData
             .updateE[ManagerError](mockName) { actions =>
               if (actions.exists(_.name === action.name)) DuplicateActionFound(mockName, action.name).asLeft
-              else location match {
-                case InsertLocation.Start() => actions.prepend(action).asRight
-                case InsertLocation.End() => actions.append(action).asRight
-                case InsertLocation.After(anchor) =>
-                  actions.insertAfterBy(action, anchor).toRight(ActionNotFound(mockName, anchor))
-                case InsertLocation.Before(anchor) =>
-                  actions.insertBeforeBy(action, anchor).toRight(ActionNotFound(mockName, anchor))
-              }
+              else
+                location match {
+                  case InsertLocation.Start()        => actions.prepend(action).asRight
+                  case InsertLocation.End()          => actions.append(action).asRight
+                  case InsertLocation.After(anchor)  =>
+                    actions.insertAfterBy(action, anchor).toRight(ActionNotFound(mockName, anchor))
+                  case InsertLocation.Before(anchor) =>
+                    actions.insertBeforeBy(action, anchor).toRight(ActionNotFound(mockName, anchor))
+                }
             }
             .map(_.getOrElse(MockNotFound(mockName).asLeft))
-
 
         override def deleteAction(mockName: MockName, actionName: ActionName): F[Either[ManagerError, Unit]] =
           actionsData

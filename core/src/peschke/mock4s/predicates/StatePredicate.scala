@@ -2,11 +2,14 @@ package peschke.mock4s.predicates
 
 import cats.Eq
 import cats.syntax.all._
+import io.circe.Decoder
+import io.circe.Encoder
+import io.circe.Json
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, Json}
 import peschke.mock4s.algebras.PredicateChecker
 import peschke.mock4s.algebras.PredicateChecker.syntax._
-import peschke.mock4s.models.{MockState, |+|}
+import peschke.mock4s.models.MockState
+import peschke.mock4s.models.|+|
 import peschke.mock4s.models.|+|.syntax._
 import peschke.mock4s.utils.Circe._
 
@@ -28,50 +31,53 @@ object StateTests {
   )
 
   implicit val encoder: Encoder[StateTests] = Encoder.instance {
-    case IsCleared(key) => Json.obj("cleared" := key)
+    case IsCleared(key)    => Json.obj("cleared" := key)
     case IsSet(key, value) => Json.obj("set" := JsonObjectTuple.json(key, value))
   }
 
   implicit val eq: Eq[StateTests] = Eq.instance {
     case (IsCleared(ka), IsCleared(kb)) => ka === kb
     case (IsSet(ka, va), IsSet(kb, vb)) => ka === kb && va === vb
-    case _ => false
+    case _                              => false
   }
 
-  implicit val checker: PredicateChecker[MockState.State, StateTests] = {
-    (predicate, in) =>
-      predicate match {
-        case IsCleared(key) => !MockState.State.raw(in).contains(key)
-        case IsSet(key, value) =>
-          MockState.State.raw(in).get(key).exists(_.satisfies(value))
-      }
+  implicit val checker: PredicateChecker[MockState.State, StateTests] = { (predicate, in) =>
+    predicate match {
+      case IsCleared(key)    => !MockState.State.raw(in).contains(key)
+      case IsSet(key, value) =>
+        MockState.State.raw(in).get(key).exists(_.satisfies(value))
+    }
   }
 }
 
 object StatePredicate extends PredicateWrapper[MockState.State, StateTests |+| Fixed[MockState.State]] {
   val always: Type = wrap {
-    Fixed.Always[MockState.State]()
+    Fixed
+      .Always[MockState.State]()
       .upcast
       .second[StateTests]
       .first[UsingCombinators[Base]]
   }
 
   val never: Type = wrap {
-    Fixed.Never[MockState.State]()
+    Fixed
+      .Never[MockState.State]()
       .upcast
       .second[StateTests]
       .first[UsingCombinators[Base]]
   }
 
   def isCleared(key: MockState.Key): Type = wrap {
-    StateTests.IsCleared(key)
+    StateTests
+      .IsCleared(key)
       .upcast
       .first[Fixed[MockState.State]]
       .first[UsingCombinators[Base]]
   }
 
   def isSet(key: MockState.Key, value: JsonPredicate.Type): Type = wrap {
-    StateTests.IsSet(key, value)
+    StateTests
+      .IsSet(key, value)
       .upcast
       .first[Fixed[MockState.State]]
       .first[UsingCombinators[Base]]

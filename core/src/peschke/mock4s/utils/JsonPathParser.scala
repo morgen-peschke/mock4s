@@ -1,12 +1,18 @@
 package peschke.mock4s.utils
 
-import cats.data.{Chain, NonEmptyChain, Validated, ValidatedNec}
+import cats.data.Chain
+import cats.data.NonEmptyChain
+import cats.data.Validated
+import cats.data.ValidatedNec
 import cats.syntax.all._
 import peschke.mock4s.algebras.Parser
-import peschke.mock4s.algebras.Parser.{ParseError, Result, State}
+import peschke.mock4s.algebras.Parser.ParseError
+import peschke.mock4s.algebras.Parser.Result
+import peschke.mock4s.algebras.Parser.State
 import peschke.mock4s.models.JsonPath
 import peschke.mock4s.models.JsonPath.Segment
-import peschke.mock4s.models.JsonPath.Segment.{BareField, QuotedField}
+import peschke.mock4s.models.JsonPath.Segment.BareField
+import peschke.mock4s.models.JsonPath.Segment.QuotedField
 
 object JsonPathParser {
   object IdentifierChar extends supertagged.NewType[Char]

@@ -2,8 +2,10 @@ package peschke.mock4s.predicates
 
 import cats.Eq
 import cats.syntax.all._
+import io.circe.Decoder
+import io.circe.Encoder
+import io.circe.Json
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, Json}
 import peschke.mock4s.algebras.PredicateChecker
 import peschke.mock4s.utils.Circe._
 
@@ -40,18 +42,19 @@ object Fixed {
   )
 
   implicit def encoder[A]: Encoder[Fixed[A]] = Encoder.instance {
-    case p@Always() => p.asJson
-    case p@Never() => p.asJson
+    case p @ Always() => p.asJson
+    case p @ Never()  => p.asJson
   }
 
   implicit def eq[A]: Eq[Fixed[A]] = Eq.instance {
     case (Always(), Always()) => true
-    case (Never(), Never()) => true
-    case _ => false
+    case (Never(), Never())   => true
+    case _                    => false
   }
 
-  implicit def predicateChecker[In]: PredicateChecker[In, Fixed[In]] = (predicate, _) => predicate match {
-    case Fixed.Always() => true
-    case Fixed.Never() => false
-  }
+  implicit def predicateChecker[In]: PredicateChecker[In, Fixed[In]] = (predicate, _) =>
+    predicate match {
+      case Fixed.Always() => true
+      case Fixed.Never()  => false
+    }
 }

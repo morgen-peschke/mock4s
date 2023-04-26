@@ -5,7 +5,9 @@ import cats.syntax.all._
 import io.circe.Json
 import io.circe.syntax._
 import munit.FunSuite
-import org.http4s.{Header, HttpVersion, Status}
+import org.http4s.Header
+import org.http4s.HttpVersion
+import org.http4s.Status
 import org.typelevel.ci._
 import peschke.mock4s.MUnitCirce
 
@@ -24,12 +26,12 @@ class ResponseDefJsonTest extends FunSuite with MUnitCirce {
         ).some
       ),
       Json.obj(
-        "status" := 200,
-        "http-version" := "HTTP/1.1",
-        "headers" := Json.arr(
+        "status"        := 200,
+        "http-version"  := "HTTP/1.1",
+        "headers"       := Json.arr(
           Json.obj("name" := "Content-Type", "value" := "application/json")
         ),
-        "body" := Json.obj("json" := Json.obj("in-body" := Json.Null)),
+        "body"          := Json.obj("json" := Json.obj("in-body" := Json.Null)),
         "state-updates" := Json.arr(
           Json.obj("set" := Json.obj("state-key" := Json.Null))
         )
@@ -51,11 +53,11 @@ class ResponseDefJsonTest extends FunSuite with MUnitCirce {
         ).some
       ),
       Json.obj(
-        "status" := 200,
-        "headers" := Json.arr(
+        "status"        := 200,
+        "headers"       := Json.arr(
           Json.obj("name" := "Content-Type", "value" := "application/json")
         ),
-        "body" := Json.obj("json" := Json.obj("in-body" := Json.Null)),
+        "body"          := Json.obj("json" := Json.obj("in-body" := Json.Null)),
         "state-updates" := Json.arr(
           Json.obj("set" := Json.obj("state-key" := Json.Null))
         )
@@ -75,8 +77,8 @@ class ResponseDefJsonTest extends FunSuite with MUnitCirce {
         ).some
       ),
       Json.obj(
-        "status" := 200,
-        "body" := Json.obj("json" := Json.obj("in-body" := Json.Null)),
+        "status"        := 200,
+        "body"          := Json.obj("json" := Json.obj("in-body" := Json.Null)),
         "state-updates" := Json.arr(
           Json.obj("set" := Json.obj("state-key" := Json.Null))
         )
@@ -95,7 +97,7 @@ class ResponseDefJsonTest extends FunSuite with MUnitCirce {
       ),
       Json.obj(
         "status" := 200,
-        "body" := Json.obj("json" := Json.obj("in-body" := Json.Null))
+        "body"   := Json.obj("json" := Json.obj("in-body" := Json.Null))
       )
     )
   }

@@ -1,10 +1,16 @@
 package peschke.mock4s.algebras
 
-import cats.data.{Chain, NonEmptyChain, Validated}
+import cats.Functor
+import cats.Monad
+import cats.Show
+import cats.data.Chain
+import cats.data.NonEmptyChain
+import cats.data.Validated
 import cats.syntax.all._
-import cats.{Functor, Monad, Show}
+import peschke.mock4s.algebras.Parser.ParseError
+import peschke.mock4s.algebras.Parser.ParserName
+import peschke.mock4s.algebras.Parser.State
 import peschke.mock4s.algebras.Parser.State.History
-import peschke.mock4s.algebras.Parser.{ParseError, ParserName, State}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
@@ -242,7 +248,7 @@ object Parser        {
 
   def findValid[Output](p0: Parser[Output], pN: Parser[Output]*): Parser[Output] = {
     val pchain = Chain.fromSeq(pN)
-    val name = pchain.prepend(p0).map(_.name).mkString_(s"findValid(", ",", ")")
+    val name = pchain.prepend(p0).map(_.name).mkString_("findValid(", ",", ")")
     Parser.namedAccumulating[Output](name) { input =>
       pchain.foldLeft(p0.parseV(input)) { (r, p) =>
         r.findValid(p.parseV(input))

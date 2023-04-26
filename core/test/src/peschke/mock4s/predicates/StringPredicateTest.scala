@@ -3,11 +3,19 @@ package peschke.mock4s.predicates
 import cats.Eq
 import cats.syntax.all._
 import munit.ScalaCheckSuite
-import org.scalacheck.Prop._
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Gen
-import peschke.mock4s.predicates.StringPredicate.{always, contains, endsWith, in, is, never, startsWith}
-import peschke.mock4s.predicates.StringPredicateTest.{unique2, valueInNonEmptyList, valueNotInNonEmptyList}
+import org.scalacheck.Prop._
+import peschke.mock4s.predicates.StringPredicate.always
+import peschke.mock4s.predicates.StringPredicate.contains
+import peschke.mock4s.predicates.StringPredicate.endsWith
+import peschke.mock4s.predicates.StringPredicate.in
+import peschke.mock4s.predicates.StringPredicate.is
+import peschke.mock4s.predicates.StringPredicate.never
+import peschke.mock4s.predicates.StringPredicate.startsWith
+import peschke.mock4s.predicates.StringPredicateTest.unique2
+import peschke.mock4s.predicates.StringPredicateTest.valueInNonEmptyList
+import peschke.mock4s.predicates.StringPredicateTest.valueNotInNonEmptyList
 
 import scala.annotation.tailrec
 

@@ -1,14 +1,16 @@
 package peschke.mock4s.predicates
 
+import cats.Eq
+import cats.Show
 import cats.syntax.all._
-import cats.{Eq, Show}
-import io.circe.{Decoder, Encoder}
+import io.circe.Decoder
+import io.circe.Encoder
 import peschke.mock4s.algebras.PredicateChecker
 import peschke.mock4s.models.|+|
 import peschke.mock4s.models.|+|.syntax.LiftOps
 
 abstract class PredicateWrapper[T, B: Decoder: Encoder](implicit baseChecker: PredicateChecker[T, B])
-  extends supertagged.NewType[B |+| UsingCombinators[B]] {
+    extends supertagged.NewType[B |+| UsingCombinators[B]] {
   type Base = B
 
   def wrap(c: Base |+| UsingCombinators[Base]): Type = apply(c)

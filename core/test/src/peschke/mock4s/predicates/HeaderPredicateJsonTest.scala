@@ -23,13 +23,17 @@ class HeaderPredicateJsonTest extends FunSuite with MUnitCirce {
 
   test("forall") {
     assertCodec(
-      HeaderPredicate.forall(List(
-        HeaderPredicate.header(ci"name", StringPredicate.is("value")),
-        HeaderPredicate.not(HeaderPredicate.header(ci"name", StringPredicate.is("value")))
-      )),
-      Json.obj("forall" := List(
-        Json.obj("name" := Json.obj("is" := "value")),
-        Json.obj( "!" := Json.obj("name" := Json.obj("is" := "value"))))
+      HeaderPredicate.forall(
+        List(
+          HeaderPredicate.header(ci"name", StringPredicate.is("value")),
+          HeaderPredicate.not(HeaderPredicate.header(ci"name", StringPredicate.is("value")))
+        )
+      ),
+      Json.obj(
+        "forall" := List(
+          Json.obj("name" := Json.obj("is" := "value")),
+          Json.obj("!"    := Json.obj("name" := Json.obj("is" := "value")))
+        )
       )
     )
   }

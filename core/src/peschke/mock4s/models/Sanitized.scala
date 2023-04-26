@@ -3,7 +3,8 @@ package peschke.mock4s.models
 import cats.Eq
 import cats.data.Chain
 import cats.syntax.all._
-import io.circe.{Decoder, Encoder}
+import io.circe.Decoder
+import io.circe.Encoder
 import org.http4s.Uri.Path
 import org.http4s.Uri.Path.Segment
 import peschke.mock4s.models.Sanitized.Token
@@ -60,13 +61,13 @@ object Sanitized {
 
     implicit val eq: Eq[Token] = Eq.instance {
       case (Literal(a), Literal(b)) => a === b
-      case (Wildcard, Wildcard) => true
-      case _ => false
+      case (Wildcard, Wildcard)     => true
+      case _                        => false
     }
 
     val semanticEq: Eq[Token] = Eq.instance {
       case (Literal(a), Literal(b)) => a === b
-      case _ => true
+      case _                        => true
     }
 
     val semanticChainEq: Eq[Chain[Token]] = Chain.catsDataEqForChain(semanticEq)
@@ -87,7 +88,7 @@ object Sanitized {
     Path(
       segments = sanitized.tokens.toVector.map {
         case Token.Literal(segment) => segment
-        case Token.Wildcard => Path.Segment("*")
+        case Token.Wildcard         => Path.Segment("*")
       },
       absolute = sanitized.absolute,
       endsWithSlash = sanitized.endsWithSlash
@@ -96,7 +97,7 @@ object Sanitized {
 
   implicit val eq: Eq[Sanitized] = Eq.instance { (a, b) =>
     a.absolute === b.absolute &&
-      a.endsWithSlash === b.endsWithSlash &&
-      a.tokens === b.tokens
+    a.endsWithSlash === b.endsWithSlash &&
+    a.tokens === b.tokens
   }
 }

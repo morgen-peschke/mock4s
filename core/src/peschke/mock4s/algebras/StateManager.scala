@@ -5,7 +5,8 @@ import cats.effect.Ref
 import cats.effect.kernel.Sync
 import cats.syntax.all._
 import io.circe.Json
-import peschke.mock4s.models.MockDefinition.{ActionName, MockName}
+import peschke.mock4s.models.MockDefinition.ActionName
+import peschke.mock4s.models.MockDefinition.MockName
 import peschke.mock4s.models.MockState
 
 trait StateManager[F[_]] {
@@ -27,9 +28,9 @@ object StateManager {
 
   sealed trait ManagerError
   object ManagerError {
-    final case class MockNotFound(mockName: MockName) extends ManagerError
-    final case class ActionNotFound(mockName: MockName, actionName: ActionName) extends ManagerError
-    final case class DuplicateMockFound(mockName: MockName) extends ManagerError
+    final case class MockNotFound(mockName: MockName)                                 extends ManagerError
+    final case class ActionNotFound(mockName: MockName, actionName: ActionName)       extends ManagerError
+    final case class DuplicateMockFound(mockName: MockName)                           extends ManagerError
     final case class DuplicateActionFound(mockName: MockName, actionName: ActionName) extends ManagerError
 
     implicit val show: Show[ManagerError] = Show.fromToString

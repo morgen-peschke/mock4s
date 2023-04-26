@@ -1,10 +1,14 @@
 package peschke.mock4s.models
 
-import cats.data.{Chain, NonEmptyList}
+import cats.data.Chain
+import cats.data.NonEmptyList
 import cats.syntax.all._
 import io.circe.CursorOp.DownN
+import io.circe.Decoder
+import io.circe.DecodingFailure
+import io.circe.Encoder
+import io.circe.Json
 import io.circe.syntax._
-import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import peschke.mock4s.models.MockDefinition.MockName
 import peschke.mock4s.utils.Circe._
 
@@ -25,14 +29,15 @@ object Settings {
               .groupBy(_._1.name)
               .toList
               .flatMap {
-                case (_, Chain(_)) => Nil
+                case (_, Chain(_))      => Nil
                 case (name, duplicates) =>
                   duplicates.toList.map { case (_, i) =>
                     DecodingFailure(show"Duplicate mock name: $name", DownN(i) :: c.history)
                   }
               }
 
-          NonEmptyList.fromList(errors)
+          NonEmptyList
+            .fromList(errors)
             .fold(mocks.map(_._1).validNel[DecodingFailure])(_.invalid)
         }
         .map(apply(_))

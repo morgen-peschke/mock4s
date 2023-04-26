@@ -1,9 +1,14 @@
 package peschke.mock4s.models
 
-import cats.{Eq, Order}
-import cats.data.{NonEmptyList, Validated}
+import cats.Eq
+import cats.Order
+import cats.data.NonEmptyList
+import cats.data.Validated
 import cats.syntax.all._
-import io.circe.{Decoder, DecodingFailure, Encoder, Json}
+import io.circe.Decoder
+import io.circe.DecodingFailure
+import io.circe.Encoder
+import io.circe.Json
 import io.circe.syntax._
 import peschke.mock4s.utils.Circe._
 
@@ -12,9 +17,9 @@ import java.util.Base64
 
 sealed abstract class Body
 object Body {
-  final case object Empty                      extends Body
-  final case class TextBody(text: String)      extends Body
-  final case class JsonBody(json: Json)        extends Body
+  case object Empty                         extends Body
+  final case class TextBody(text: String)         extends Body
+  final case class JsonBody(json: Json)           extends Body
   final case class Bytes(hexString: Base64String) extends Body
 
   object Base64String extends supertagged.NewType[String] {
@@ -60,10 +65,10 @@ object Body {
   }
 
   implicit val eq: Eq[Body] = Eq.instance {
-    case (Empty, Empty) => true
+    case (Empty, Empty)             => true
     case (TextBody(a), TextBody(b)) => a === b
     case (JsonBody(a), JsonBody(b)) => a === b
-    case (Bytes(a), Bytes(b)) => a === b
-    case _ => false
+    case (Bytes(a), Bytes(b))       => a === b
+    case _                          => false
   }
 }

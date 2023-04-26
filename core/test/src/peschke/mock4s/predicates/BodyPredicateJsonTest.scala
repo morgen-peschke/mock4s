@@ -4,7 +4,10 @@ import io.circe.Json
 import io.circe.syntax._
 import munit.FunSuite
 import peschke.mock4s.MUnitCirce
-import peschke.mock4s.predicates.BodyPredicate.{isEmpty, json, bytes, text}
+import peschke.mock4s.predicates.BodyPredicate.bytes
+import peschke.mock4s.predicates.BodyPredicate.isEmpty
+import peschke.mock4s.predicates.BodyPredicate.json
+import peschke.mock4s.predicates.BodyPredicate.text
 
 class BodyPredicateJsonTest extends FunSuite with MUnitCirce {
   test("IsEmpty") {

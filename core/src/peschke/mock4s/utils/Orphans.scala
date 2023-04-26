@@ -1,11 +1,13 @@
 package peschke.mock4s.utils
 
-import cats.{Defer, Eq, PartialOrder}
+import cats.Defer
+import cats.Eq
+import cats.PartialOrder
 
 import scala.annotation.tailrec
 
 object Orphans {
-  case class DeferredEq[A](eq: () => Eq[A]) extends Eq[A] {
+  final case class DeferredEq[A](eq: () => Eq[A]) extends Eq[A] {
     override def eqv(x: A, y: A): Boolean = {
       @tailrec
       def loop(f: () => Eq[A]): Boolean =
@@ -21,7 +23,7 @@ object Orphans {
     override def defer[A](fa: => Eq[A]): Eq[A] = DeferredEq(() => fa)
   }
 
-  case class DeferredPartialOrder[A](PartialOrder: () => PartialOrder[A]) extends PartialOrder[A] {
+  final case class DeferredPartialOrder[A](PartialOrder: () => PartialOrder[A]) extends PartialOrder[A] {
     override def partialCompare(x: A, y: A): Double = {
       @tailrec
       def loop(f: () => PartialOrder[A]): Double =

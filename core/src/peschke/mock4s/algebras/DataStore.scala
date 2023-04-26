@@ -2,7 +2,8 @@ package peschke.mock4s.algebras
 
 import cats.Eq
 import cats.data.Chain
-import cats.effect.{Ref, Sync}
+import cats.effect.Ref
+import cats.effect.Sync
 import cats.syntax.all._
 import peschke.mock4s.utils.ChainUtils._
 
@@ -21,17 +22,17 @@ trait DataStore[F[_], K, V] {
   def pop(key: K): F[Option[V]]
   def shift(key: K): F[Option[V]]
 
-  def updateE[E](key: K)(fn: Chain[V] => Either[E,Chain[V]]): F[Option[Either[E, Unit]]]
+  def updateE[E](key: K)(fn: Chain[V] => Either[E, Chain[V]]): F[Option[Either[E, Unit]]]
 
   def remove(key: K, value: V)(implicit eq: Eq[V]): F[Unit]
   def removeBy[I: Eq](key: K, id: I)(implicit ID: Identify[V, I]): F[Unit]
 
-  def insertAfterBy[I: Eq](key: K, value: V, after: I)(implicit ID: Identify[V,I]): F[Boolean]
-  def insertBeforeBy[I: Eq](key: K, value: V, before: I)(implicit ID: Identify[V,I]): F[Boolean]
+  def insertAfterBy[I: Eq](key: K, value: V, after: I)(implicit ID: Identify[V, I]): F[Boolean]
+  def insertBeforeBy[I: Eq](key: K, value: V, before: I)(implicit ID: Identify[V, I]): F[Boolean]
 }
 
 object DataStore {
-  def empty[F[_] : Sync, K, V]: F[DataStore[F, K, V]] = init[F,K,V](Chain.empty)
+  def empty[F[_]: Sync, K, V]: F[DataStore[F, K, V]] = init[F, K, V](Chain.empty)
 
   def init[F[_]: Sync, K, V](values: Chain[(K, Chain[V])]): F[DataStore[F, K, V]] =
     Ref[F].of(values.toVector.toMap).map { mapRef =>
@@ -58,10 +59,10 @@ object DataStore {
 
         override def pop(key: K): F[Option[V]] = mapRef.modify { map =>
           map.get(key) match {
-            case None => map -> none[V]
+            case None         => map -> none[V]
             case Some(values) =>
               values.uncons match {
-                case None => map.removed(key) -> none[V]
+                case None                => map.removed(key) -> none[V]
                 case Some(value -> tail) => map.updated(key, tail) -> value.some
               }
           }
@@ -69,10 +70,10 @@ object DataStore {
 
         override def shift(key: K): F[Option[V]] = mapRef.modify { map =>
           map.get(key) match {
-            case None => map -> none[V]
+            case None         => map -> none[V]
             case Some(values) =>
               values.initLast match {
-                case None => map.removed(key) -> none[V]
+                case None                => map.removed(key) -> none[V]
                 case Some(init -> value) => map.updated(key, init) -> value.some
               }
           }
@@ -80,32 +81,38 @@ object DataStore {
 
         override def updateE[E](key: K)(fn: Chain[V] => Either[E, Chain[V]]): F[Option[Either[E, Unit]]] =
           mapRef.modify { map =>
-            map.get(key).map(fn(_))
-              .fold(map -> none[Either[E, Unit]])(_.fold(
-                map -> _.asLeft.some,
-                map.updated(key, _) -> ().asRight.some
-              ))
+            map
+              .get(key).map(fn(_))
+              .fold(map -> none[Either[E, Unit]])(
+                _.fold(
+                  map -> _.asLeft.some,
+                  map.updated(key, _) -> ().asRight.some
+                )
+              )
           }
 
         override def remove(key: K, value: V)(implicit eq: Eq[V]): F[Unit] = removeBy[V](key, value)
 
         override def removeBy[I: Eq](key: K, id: I)(implicit ID: Identify[V, I]): F[Unit] =
           mapRef.update { map =>
-            map.get(key)
+            map
+              .get(key)
               .flatMap(_.deleteFirst(ID.id(_) === id))
               .fold(map)(updated => map.updated(key, updated._2))
           }
 
         override def insertAfterBy[I: Eq](key: K, value: V, after: I)(implicit ID: Identify[V, I]): F[Boolean] =
           mapRef.modify { map =>
-            map.get(key)
+            map
+              .get(key)
               .flatMap(_.insertAfterBy(value, after))
               .fold(map -> false)(updated => map.updated(key, updated) -> true)
           }
 
         override def insertBeforeBy[I: Eq](key: K, value: V, before: I)(implicit ID: Identify[V, I]): F[Boolean] =
           mapRef.modify { map =>
-            map.get(key)
+            map
+              .get(key)
               .flatMap(_.insertAfterBy(value, before))
               .fold(map -> false)(updated => map.updated(key, updated) -> true)
           }

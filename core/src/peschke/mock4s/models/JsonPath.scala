@@ -1,12 +1,23 @@
 package peschke.mock4s.models
 
-import cats.data.{Chain, NonEmptyChain}
+import cats.Eq
+import cats.Order
+import cats.Show
+import cats.data.Chain
+import cats.data.NonEmptyChain
 import cats.syntax.all._
-import cats.{Eq, Order, Show}
+import io.circe.ACursor
+import io.circe.Decoder
+import io.circe.DecodingFailure
+import io.circe.Encoder
+import io.circe.HCursor
+import io.circe.Json
 import io.circe.syntax._
-import io.circe.{ACursor, Decoder, DecodingFailure, Encoder, HCursor, Json}
 import peschke.mock4s.models.JsonPath.Segment
-import peschke.mock4s.models.JsonPath.Segment.{AtIndex, BareField, DownArray, QuotedField}
+import peschke.mock4s.models.JsonPath.Segment.AtIndex
+import peschke.mock4s.models.JsonPath.Segment.BareField
+import peschke.mock4s.models.JsonPath.Segment.DownArray
+import peschke.mock4s.models.JsonPath.Segment.QuotedField
 import peschke.mock4s.utils.Circe._
 import peschke.mock4s.utils.JsonPathParser
 
@@ -102,7 +113,7 @@ object JsonPath                                              {
         .foldLeft(new StringBuilder()) { (b, c) =>
           c match {
             case '\\'                                                         => b.append(raw"\\")
-            case '/'                                                          => b.append(raw"\/")
+            case '/'                                                          => b.append("\\/")
             case '"'                                                          => b.append("\\\"")
             case '\u0008'                                                     => b.append("\b")
             case '\u000C'                                                     => b.append("\f")

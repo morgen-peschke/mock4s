@@ -12,7 +12,7 @@ trait PredicateChecker[I, P] {
     (predicate, in) => self.test(f(predicate), in)
   }
 }
-object PredicateChecker {
+object PredicateChecker      {
   def apply[In, ADT](implicit PC: PredicateChecker[In, ADT]): PC.type = PC
 
   object syntax {
@@ -32,13 +32,13 @@ object PredicateChecker {
     private def resolve(f: () => PredicateChecker[In, ADT]): PredicateChecker[In, ADT] =
       f() match {
         case Deferred(next) => resolve(next)
-        case checker => checker
+        case checker        => checker
       }
 
     override def test(predicate: ADT, in: In): Boolean = resolved.test(predicate, in)
   }
 
-  implicit def deferInstance[In]: Defer[PredicateChecker[In,*]] = new Defer[PredicateChecker[In, *]] {
+  implicit def deferInstance[In]: Defer[PredicateChecker[In, *]] = new Defer[PredicateChecker[In, *]] {
     override def defer[A](fa: => PredicateChecker[In, A]): PredicateChecker[In, A] =
       Deferred[In, A](() => fa)
   }

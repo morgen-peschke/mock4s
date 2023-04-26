@@ -1,7 +1,8 @@
 package peschke.mock4s.predicates
 
 import cats.Eq
-import io.circe.{Decoder, Encoder}
+import io.circe.Decoder
+import io.circe.Encoder
 import org.http4s.Method
 import peschke.mock4s.models.|+|
 import peschke.mock4s.models.|+|.syntax._
@@ -16,21 +17,24 @@ abstract class SimpleEq[A: Eq: Decoder: Encoder] extends PredicateWrapper[A, Fix
   }
 
   val never: Type = wrap {
-    Fixed.Never[A]()
+    Fixed
+      .Never[A]()
       .upcast
       .first[UsingEq[A]]
       .first[UsingCombinators[Base]]
   }
 
   def is(sentinel: A): Type = wrap {
-    UsingEq.Is(sentinel)
+    UsingEq
+      .Is(sentinel)
       .upcast
       .second[Fixed[A]]
       .first[UsingCombinators[Base]]
   }
 
   def in(sentinels: List[A]): Type = wrap {
-    UsingEq.In[A](sentinels)
+    UsingEq
+      .In[A](sentinels)
       .upcast
       .second[Fixed[A]]
       .first[UsingCombinators[Base]]

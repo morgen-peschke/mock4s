@@ -13,12 +13,11 @@ object RequestParser      {
 
   def default[F[_]: Concurrent: BodyParser: StateManager]: RequestParser[F] =
     request =>
-      (BodyParser[F].parse(request), StateManager[F].retrieve).tupled.map {
-        case (body, state) =>
-          ParsedRequest(
-            ParsedRequest.Route(request.method, request.uri.path, request.uri.query, state),
-            request.headers.headers,
-            body
-          )
+      (BodyParser[F].parse(request), StateManager[F].retrieve).tupled.map { case (body, state) =>
+        ParsedRequest(
+          ParsedRequest.Route(request.method, request.uri.path, request.uri.query, state),
+          request.headers.headers,
+          body
+        )
       }
 }

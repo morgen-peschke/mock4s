@@ -3,10 +3,15 @@ package peschke.mock4s.predicates
 import io.circe.Json
 import io.circe.syntax._
 import munit._
-import org.http4s.{Method, Query, Uri}
+import org.http4s.Method
+import org.http4s.Query
+import org.http4s.Uri
 import peschke.mock4s.MUnitCirce
 import peschke.mock4s.models.MockState
-import peschke.mock4s.predicates.RoutePredicate.{method, path, query, state}
+import peschke.mock4s.predicates.RoutePredicate.method
+import peschke.mock4s.predicates.RoutePredicate.path
+import peschke.mock4s.predicates.RoutePredicate.query
+import peschke.mock4s.predicates.RoutePredicate.state
 
 class RoutePredicateJsonTest extends FunSuite with MUnitCirce {
   test("WhenMethod") {

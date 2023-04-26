@@ -2,7 +2,8 @@ package peschke.mock4s.predicates
 
 import cats.Eq
 import cats.syntax.all._
-import io.circe.{Decoder, Encoder}
+import io.circe.Decoder
+import io.circe.Encoder
 import org.http4s.Header
 import org.typelevel.ci.CIString
 import peschke.mock4s.algebras.PredicateChecker
@@ -37,15 +38,16 @@ object HeaderPredicate extends PredicateWrapper[Header.Raw, HeaderTest |+| Fixed
   }
 
   def is(sentinel: Header.Raw): Type = wrap {
-    UsingEq.Is[Header.Raw](sentinel)
+    UsingEq
+      .Is[Header.Raw](sentinel)
       .upcast
       .second[HeaderTest |+| Fixed[Header.Raw]]
       .first[UsingCombinators[Base]]
   }
 
-
   def in(sentinels: List[Header.Raw]): Type = wrap {
-    UsingEq.In[Header.Raw](sentinels)
+    UsingEq
+      .In[Header.Raw](sentinels)
       .upcast
       .second[HeaderTest |+| Fixed[Header.Raw]]
       .first[UsingCombinators[Base]]

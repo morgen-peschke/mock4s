@@ -2,8 +2,10 @@ package peschke.mock4s.predicates
 
 import cats.Eq
 import cats.syntax.all._
+import io.circe.Decoder
+import io.circe.Encoder
+import io.circe.Json
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, Json}
 import org.http4s.Query
 import peschke.mock4s.algebras.PredicateChecker
 import peschke.mock4s.algebras.PredicateChecker.syntax._
@@ -14,10 +16,10 @@ import peschke.mock4s.utils.Circe._
 sealed trait QueryTest {
   def upcast: QueryTest = this
 }
-object QueryTest {
-  case object Empty extends QueryTest
-  final case class OmitsParam(name: String) extends QueryTest
-  final case class EmptyParam(name: String) extends QueryTest
+object QueryTest       {
+  case object Empty                                                extends QueryTest
+  final case class OmitsParam(name: String)                        extends QueryTest
+  final case class EmptyParam(name: String)                        extends QueryTest
   final case class ForParam(name: String, p: StringPredicate.Type) extends QueryTest
 
   implicit val decoder: Decoder[QueryTest] = anyOf[QueryTest](
@@ -28,38 +30,40 @@ object QueryTest {
   )
 
   implicit val encoder: Encoder[QueryTest] = Encoder.instance {
-    case Empty => Json.fromString("empty")
-    case OmitsParam(key) => Json.obj("omits" := key)
-    case EmptyParam(key) => Json.obj("empty-param" := key)
+    case Empty            => Json.fromString("empty")
+    case OmitsParam(key)  => Json.obj("omits" := key)
+    case EmptyParam(key)  => Json.obj("empty-param" := key)
     case ForParam(key, p) => Json.obj("param" := JsonObjectTuple.json(key, p))
   }
 
   implicit val eq: Eq[QueryTest] = Eq.instance {
-    case (Empty, Empty) => true
-    case (OmitsParam(a), OmitsParam(b)) => a === b
-    case (EmptyParam(a), EmptyParam(b)) => a === b
+    case (Empty, Empty)                       => true
+    case (OmitsParam(a), OmitsParam(b))       => a === b
+    case (EmptyParam(a), EmptyParam(b))       => a === b
     case (ForParam(ak, ap), ForParam(bk, bp)) => ak === bk && ap === bp
-    case _ => false
+    case _                                    => false
   }
 
   private def queryIsPresent(query: Query): Boolean = query match {
     case Query.Empty => false
-    case _ => true
+    case _           => true
   }
 
-  implicit val checker: PredicateChecker[Query, QueryTest] = (predicate, in) => predicate match {
-    case Empty => !queryIsPresent(in)
-    case OmitsParam(key) => queryIsPresent(in) && !in.pairs.exists(key === _._1)
-    case EmptyParam(key) =>
-      in.exists {
-      case (k, None) => k === key
-      case _ => false
+  implicit val checker: PredicateChecker[Query, QueryTest] = (predicate, in) =>
+    predicate match {
+      case Empty            => !queryIsPresent(in)
+      case OmitsParam(key)  => queryIsPresent(in) && !in.pairs.exists(key === _._1)
+      case EmptyParam(key)  =>
+        in.exists {
+          case (k, None) => k === key
+          case _         => false
+        }
+      case ForParam(key, p) =>
+        in.exists {
+          case (k, Some(v)) => k === key && v.satisfies(p)
+          case _            => false
+        }
     }
-    case ForParam(key, p) => in.exists {
-      case (k, Some(v)) => k === key && v.satisfies(p)
-      case _ => false
-    }
-  }
 }
 
 object QueryPredicate extends PredicateWrapper[Query, Fixed[Query] |+| UsingEq[Query] |+| QueryTest] {
@@ -70,7 +74,8 @@ object QueryPredicate extends PredicateWrapper[Query, Fixed[Query] |+| UsingEq[Q
     wrap(Fixed.Never[Query]().upcast.first[UsingEq[Query]].first[QueryTest].first[UsingCombinators[Base]])
 
   def is(sentinel: Query): Type = wrap {
-    UsingEq.Is[Query](sentinel)
+    UsingEq
+      .Is[Query](sentinel)
       .upcast
       .second[Fixed[Query]]
       .first[QueryTest]
@@ -78,7 +83,8 @@ object QueryPredicate extends PredicateWrapper[Query, Fixed[Query] |+| UsingEq[Q
   }
 
   def in(sentinels: List[Query]): Type = wrap {
-    UsingEq.In[Query](sentinels)
+    UsingEq
+      .In[Query](sentinels)
       .upcast
       .second[Fixed[Query]]
       .first[QueryTest]

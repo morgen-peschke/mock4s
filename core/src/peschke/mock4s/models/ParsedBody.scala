@@ -1,7 +1,8 @@
 package peschke.mock4s.models
 
+import io.circe.Encoder
+import io.circe.Json
 import io.circe.syntax._
-import io.circe.{Encoder, Json}
 import peschke.mock4s.models.Body.Base64String
 
 sealed trait ParsedBody

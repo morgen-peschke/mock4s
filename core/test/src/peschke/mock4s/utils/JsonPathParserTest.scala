@@ -1,15 +1,25 @@
 package peschke.mock4s.utils
 
-import cats.data.{Chain, Validated}
+import cats.data.Chain
+import cats.data.Validated
 import cats.syntax.all._
-import munit.{Assertions, Location, ScalaCheckSuite}
+import munit.Assertions
+import munit.Location
+import munit.ScalaCheckSuite
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Gen
 import org.scalacheck.Prop.forAll
 import peschke.mock4s.models.JsonPath
 import peschke.mock4s.models.JsonPath.Segment
-import peschke.mock4s.models.JsonPath.Segment.{AtIndex, BareField, DownArray, QuotedField}
-import peschke.mock4s.utils.JsonPathParserTest.{atIndexSegments, bareFields, downArraySegments, quotedFields, TestInput}
+import peschke.mock4s.models.JsonPath.Segment.AtIndex
+import peschke.mock4s.models.JsonPath.Segment.BareField
+import peschke.mock4s.models.JsonPath.Segment.DownArray
+import peschke.mock4s.models.JsonPath.Segment.QuotedField
+import peschke.mock4s.utils.JsonPathParserTest.TestInput
+import peschke.mock4s.utils.JsonPathParserTest.atIndexSegments
+import peschke.mock4s.utils.JsonPathParserTest.bareFields
+import peschke.mock4s.utils.JsonPathParserTest.downArraySegments
+import peschke.mock4s.utils.JsonPathParserTest.quotedFields
 
 class JsonPathParserTest extends ScalaCheckSuite {
 
@@ -97,7 +107,7 @@ object JsonPathParserTest extends Assertions {
   }
 
   val quotedFields: Gen[(String, QuotedField)] = {
-    val unescapedChar = charsExcept(c => c.isControl || c == '\\').map(c => s"$c" -> c)
+    val unescapedChar = charsExcept(c => c.isControl || c === '\\').map(c => s"$c" -> c)
     val escapedCharacter = Gen.oneOf(
       Gen.const("\\\\" -> '\\'),
       Gen.const("\\/" -> '/'),
