@@ -230,8 +230,12 @@ object Circe {
   }
   implicit val queryEncoder: Encoder[Query] = Encoder[String].contramap(_.renderString)
 
-  final case class JsonObjectTuple[A, B](key: A, value: B)
+  final case class JsonObjectTuple[A, B](key: A, value: B) {
+    def mapN[C](f: (A, B) => C): C = f(key, value)
+    def json(implicit KE: KeyEncoder[A], VE: Encoder[B]): Json = JsonObjectTuple.json(key, value)
+  }
   object JsonObjectTuple {
+    def json[A: KeyEncoder,B: Encoder](key: A, value: B): Json = Json.obj(key := value)
     implicit def decoder[A: KeyDecoder, B: Decoder]: Decoder[JsonObjectTuple[A,B]] = accumulatingDecoder { c =>
       c.asAcc[Map[A, B]].andThen { map =>
         map.toList match {
@@ -241,8 +245,6 @@ object Circe {
       }
     }
     implicit def encoder[A: KeyEncoder, B: Encoder]: Encoder[JsonObjectTuple[A, B]] =
-      Encoder.instance[JsonObjectTuple[A,B]] { jot =>
-        Json.obj(KeyEncoder[A].apply(jot.key) -> Encoder[B].apply(jot.value))
-      }
+      Encoder.instance[JsonObjectTuple[A,B]](_.json)
   }
 }

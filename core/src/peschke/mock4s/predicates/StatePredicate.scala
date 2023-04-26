@@ -29,7 +29,7 @@ object StateTests {
 
   implicit val encoder: Encoder[StateTests] = Encoder.instance {
     case IsCleared(key) => Json.obj("cleared" := key)
-    case IsSet(key, value) => Json.obj("set" := JsonObjectTuple(key, value))
+    case IsSet(key, value) => Json.obj("set" := JsonObjectTuple.json(key, value))
   }
 
   implicit val eq: Eq[StateTests] = Eq.instance {

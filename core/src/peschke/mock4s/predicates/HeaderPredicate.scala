@@ -19,11 +19,9 @@ object HeaderTest {
   }
 
   implicit val decoder: Decoder[HeaderTest] =
-    Decoder[JsonObjectTuple[CIString, StringPredicate.Type]].map(jot => HeaderTest(jot.key, jot.value))
+    Decoder[JsonObjectTuple[CIString, StringPredicate.Type]].map(_.mapN(HeaderTest(_, _)))
 
-  implicit val encoder: Encoder[HeaderTest] =
-    Encoder[JsonObjectTuple[CIString, StringPredicate.Type]]
-      .contramap[HeaderTest](bhp => JsonObjectTuple(bhp.name, bhp.value))
+  implicit val encoder: Encoder[HeaderTest] = Encoder.instance(ht => JsonObjectTuple.json(ht.name, ht.value))
 
   implicit val checker: PredicateChecker[Header.Raw, HeaderTest] =
     (predicate, in) => in.name === predicate.name && in.value.satisfies(predicate.value)
