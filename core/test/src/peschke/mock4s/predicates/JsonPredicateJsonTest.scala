@@ -64,12 +64,12 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
   test("Not (with path)") {
     assertCodec(
       atPath(path, not(is(5.asJson))),
-      Json.obj(
-        "!" := Json.obj(
-          "at" := path,
-          "when" := Json.obj("is" := 5)
-        )
-      )
+      Json.obj("at" := path, "when" := Json.obj("!" := Json.obj("is" := 5)))
+    )
+
+    assertCodec(
+      not(atPath(path, is(5.asJson))),
+      Json.obj("!" := Json.obj("at" := path, "when" := Json.obj("is" := 5)))
     )
   }
 
@@ -102,3 +102,4 @@ class JsonPredicateJsonTest extends FunSuite with MUnitCirce {
     )
   }
 }
+
