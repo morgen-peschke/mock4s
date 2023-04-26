@@ -23,6 +23,14 @@
         }
       },
       {
+        "name": "expects.RAW",
+        "when": {"headers": [{"Accept": {"is": "application/octet-stream"}}]},
+        "respond-with": {
+          "status": 200,
+          "body": {"bytes": "3q2+7w=="}
+        }
+      },
+      {
         "name": "fallthrough",
         "when": "always",
         "respond-with": {"status": 204, "body": "empty"}

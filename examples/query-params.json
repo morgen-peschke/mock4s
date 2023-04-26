@@ -1,0 +1,53 @@
+[
+  {
+    "name": "QueryParamsExample",
+    "route": "always",
+    "actions": [
+      {
+        "name": "simple-eq",
+        "when": {"route": {"query": {"is": "hello=true&world=1"}}},
+        "respond-with": {
+          "status": 200,
+          "headers": [],
+          "body": {"text": "simple-eq"}
+        }
+      },
+      {
+        "name": "no-params",
+        "when": {"route": {"query": "empty"}},
+        "respond-with": {
+          "status": 200,
+          "headers": [],
+          "body": {"text": "no-params"}
+        }
+      },
+      {
+        "name": "omits:foo",
+        "when": {"route": {"query": {"omits": "foo"}}},
+        "respond-with": {
+          "status": 200,
+          "headers": [],
+          "body": {"text": "omits:foo"}
+        }
+      },
+      {
+        "name": "empty:bar",
+        "when": {"route": {"query": {"empty-param": "bar"}}},
+        "respond-with": {
+          "status": 200,
+          "headers": [],
+          "body": {"text": "empty:bar"}
+        }
+      },
+      {
+        "name": "foo:prefix",
+        "when": {"route": {"query": {"param": {"foo": {"starts-with": "abc"}}}}},
+        "respond-with": {
+          "status": 200,
+          "headers": [],
+          "body": {"text": "foo:prefix"}
+        }
+      }
+    ]
+  }
+]
