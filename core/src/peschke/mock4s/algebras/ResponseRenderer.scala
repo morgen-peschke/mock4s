@@ -1,8 +1,8 @@
 package peschke.mock4s.algebras
 
 import cats.Applicative
-import org.http4s.circe.CirceEntityEncoder.circeEntityEncoder
-import org.http4s.{Headers, Response}
+import org.http4s.circe.CirceEntityEncoder
+import org.http4s.{EntityEncoder, Headers, Response}
 import peschke.mock4s.models.{Body, ResponseDef}
 
 trait ResponseRenderer[F[_]] {
@@ -20,9 +20,9 @@ object ResponseRenderer      {
       )
       Applicative[F].pure(responseDef.body match {
         case Body.Empty          => base.withEmptyBody
-        case Body.TextBody(text) => base.withEntity(text)
-        case Body.JsonBody(json) => base.withEntity(json)
-        case Body.Bytes(bytes)   => base.withEntity(bytes)
+        case Body.TextBody(text) => base.withEntity(text)(EntityEncoder.stringEncoder)
+        case Body.JsonBody(json) => base.withEntity(json)(CirceEntityEncoder.circeEntityEncoder)
+        case Body.Bytes(base64Str) => base.withEntity(base64Str.bytes)(EntityEncoder.byteArrayEncoder)
       })
     }
 }

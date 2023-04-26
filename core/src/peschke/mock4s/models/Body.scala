@@ -38,6 +38,10 @@ object Body {
     }
     implicit val encoder: Encoder[Type] = Encoder[String].contramap(raw)
     implicit val order: Order[Type] = Order.by(raw)
+
+    implicit final class Ops(private val t: Type) extends AnyVal {
+      def bytes: Array[Byte] = base64decoder.decode(raw(t))
+    }
   }
   type Base64String = Base64String.Type
 
