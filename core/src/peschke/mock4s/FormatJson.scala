@@ -5,13 +5,27 @@ import cats.effect.std.Console
 import cats.syntax.all._
 import com.monovore.decline.{Argument, Command, Opts}
 import io.circe.Json
-import peschke.mock4s.algebras.{Json5Formatter, JsonFormatter, JsonSourceResolver}
+import peschke.mock4s.algebras.{Json5Formatter, JsonFormatter, JsonKeyExpander, JsonSourceResolver}
 import peschke.mock4s.models.FormatterConfig._
 import peschke.mock4s.models.JsonSource
 
 object FormatJson extends IOApp {
-
   private val sourceOpt: Opts[JsonSource] = Opts.argument[JsonSource]()
+
+  private val expandKeysOpt: Opts[ExpandKeys] =
+    Opts
+      .flag(
+        long = "expand-keys",
+        help = """|Apply key expansion before formatting.
+                  |
+                  |This converts object keys that contain valid JSON Paths representing a sequence of nested objects
+                  |or single-argument arrays into those objects.
+                  |
+                  |This isn't usually needed, but can be handy for debugging an issue with a settings file.
+                  |""".stripMargin
+      )
+      .orFalse
+      .map(ExpandKeys(_))
 
   private val indentOpt: Opts[Delta] =
     Opts
@@ -59,21 +73,21 @@ object FormatJson extends IOApp {
       .as(TightArrays.Enabled -> TightObjects.Enabled)
       .orElse((tightArraysOpt, tightObjectsOpt).tupled)
 
-  private val jsonFormatterOpt: Opts[(JsonFormatter, JsonSource)] = {
+  private val jsonFormatterOpt: Opts[((JsonFormatter, JsonSource), ExpandKeys)] = {
     val compactCmd =
-      Opts.subcommand[(JsonFormatter, JsonSource)](
+      Opts.subcommand[((JsonFormatter, JsonSource), ExpandKeys)](
         name = "compact",
         help = "Format as standard JSON, on a single line"
-      )(JsonFormatter.compact.pure[Opts].product(sourceOpt))
+      )(JsonFormatter.compact.pure[Opts].product(sourceOpt).product(expandKeysOpt))
 
     val prettyCmd =
-      Opts.subcommand[(JsonFormatter, JsonSource)](
+      Opts.subcommand[((JsonFormatter, JsonSource), ExpandKeys)](
         name = "pretty",
         help = "Format as standard JSON, usually nicely indented"
-      )((indentOpt, sortKeysOpt).mapN(JsonFormatter.pretty).product(sourceOpt))
+      )((indentOpt, sortKeysOpt).mapN(JsonFormatter.pretty).product(sourceOpt).product(expandKeysOpt))
 
     val terseCmd =
-      Opts.subcommand[(JsonFormatter, JsonSource)](
+      Opts.subcommand[((JsonFormatter, JsonSource), ExpandKeys)](
         name = "terse",
         help =
           """|Format as standard JSON, attempting to minimize horizontal size by rendering
@@ -83,12 +97,13 @@ object FormatJson extends IOApp {
         (indentOpt, sortKeysOpt, maxWidthOpt, tightBracesOpt)
           .mapN(JsonFormatter.terse)
           .product(sourceOpt)
+          .product(expandKeysOpt)
       }
 
     compactCmd.orElse(prettyCmd).orElse(terseCmd)
   }
 
-  private val json5FormatterOpt: Opts[(Json5Formatter, JsonSource)] = {
+  private val json5FormatterOpt: Opts[((Json5Formatter, JsonSource), ExpandKeys)] = {
     val tightCommasOpt: Opts[TightCommas] =
       Opts
         .flag(
@@ -142,7 +157,7 @@ object FormatJson extends IOApp {
       )
 
     val compactCmd =
-      Opts.subcommand[(Json5Formatter, JsonSource)](
+      Opts.subcommand[((Json5Formatter, JsonSource), ExpandKeys)](
         name = "compact5",
         help =
           raw"""|Format as JSON5, as compactly as possible. Equivalent to:
@@ -161,10 +176,10 @@ object FormatJson extends IOApp {
         TightCommas.Enabled,
         TightColons.Enabled,
         SingleQuote.MinimizeEscaping
-      ).pure[Opts].product(sourceOpt))
+      ).pure[Opts].product(sourceOpt).product(expandKeysOpt))
 
     val oneLineCmd =
-      Opts.subcommand[(Json5Formatter, JsonSource)](
+      Opts.subcommand[((Json5Formatter, JsonSource), ExpandKeys)](
         name = "oneLine5",
         help =
           """|Format as JSON5, on a single line. Equivalent to:
@@ -177,10 +192,10 @@ object FormatJson extends IOApp {
         TightCommas.Disabled,
         TightColons.Disabled,
         SingleQuote.Disabled
-      ).pure[Opts].product(sourceOpt))
+      ).pure[Opts].product(sourceOpt).product(expandKeysOpt))
 
     val prettyCmd =
-      Opts.subcommand[(Json5Formatter, JsonSource)](
+      Opts.subcommand[((Json5Formatter, JsonSource), ExpandKeys)](
         name = "pretty5",
         help =
           raw"""|Format as JSON5, nicely indented. Equivalent to:
@@ -199,11 +214,11 @@ object FormatJson extends IOApp {
             TightColons.Disabled,
             SingleQuote.MinimizeEscaping
           )
-        }.product(sourceOpt)
+        }.product(sourceOpt).product(expandKeysOpt)
       }
 
     val terseCmd =
-      Opts.subcommand[(Json5Formatter, JsonSource)](
+      Opts.subcommand[((Json5Formatter, JsonSource), ExpandKeys)](
         name = "terse5",
         help =
           """|Format using JSON5 conventions, attempting to minimize horizontal size by rendering
@@ -233,10 +248,11 @@ object FormatJson extends IOApp {
             )
           }
           .product(sourceOpt)
+          .product(expandKeysOpt)
       }
 
     val json5Cmd =
-      Opts.subcommand[(Json5Formatter, JsonSource)](
+      Opts.subcommand[((Json5Formatter, JsonSource), ExpandKeys)](
         name = "json5",
         help = "Format using JSON5 convention"
       ) {
@@ -261,6 +277,7 @@ object FormatJson extends IOApp {
         (indentationOpt, sortKeysOpt, tightOpts, singleQuoteOpt)
           .mapN(Json5Formatter.printer)
           .product(sourceOpt)
+          .product(expandKeysOpt)
       }
 
     compactCmd.orElse(oneLineCmd).orElse(prettyCmd).orElse(terseCmd).orElse(json5Cmd)
@@ -270,18 +287,18 @@ object FormatJson extends IOApp {
     Command(name = "FormatJson", header = "JSON/JSON5 formatting utility") {
       jsonFormatterOpt.sum(json5FormatterOpt)
     }.map(_.fold(
-      t => t._1.asLeft -> t._2,
-      t => t._1.asRight -> t._2
+      t => (t._1._1.asLeft, t._1._2, t._2),
+      t => (t._1._1.asRight, t._1._2, t._2)
     ))
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.noPrintln"))
-  override def run(args: List[String]): IO[ExitCode] = {
-    val jsr = JsonSourceResolver.default[IO]
-
+  override def run(args: List[String]): IO[ExitCode] =
     command
       .parse(args).fold(
         Console[IO].errorln(_).as(ExitCode.Error),
-        { case (formatter, source) =>
+        { case (formatter, source, expandKeys) =>
+          val jke = if (expandKeys === ExpandKeys.Enabled) JsonKeyExpander.default[IO] else JsonKeyExpander.noOp[IO]
+          val jsr = JsonSourceResolver.default[IO](jke)
           jsr
             .resolve[Json](source)
             .map(json => formatter.fold(_.format(json), _.format(json)))
@@ -290,5 +307,4 @@ object FormatJson extends IOApp {
         }
       )
 
-  }
 }

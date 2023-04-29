@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# mill core.runMain --mainClass peschke.mock4s.CliApp --port 9000 --settings file:examples/json-predicate.json
+# mill core.runMain --mainClass peschke.mock4s.CliApp --port 9000 --settings file:examples/json-predicate.json5
 
 URI='http://[::1]:9000/'
 

@@ -19,7 +19,7 @@ trait JsonSourceResolver[F[_]] {
 object JsonSourceResolver      {
   def apply[F[_]](implicit JSR: JsonSourceResolver[F]): JSR.type = JSR
 
-  def default[F[_]: Async: Files]: JsonSourceResolver[F] = new JsonSourceResolver[F] {
+  def default[F[_]: Async: Files](keyExpander: JsonKeyExpander[F]): JsonSourceResolver[F] = new JsonSourceResolver[F] {
     private val json5 = Json5.builder(_.quoteSingle().trailingComma().build())
 
     def parse(string: String): F[Json] =
@@ -53,6 +53,7 @@ object JsonSourceResolver      {
     override def resolve[A: Decoder](jsonSource: JsonSource): F[A] =
       loadString(jsonSource)
         .flatMap(parse)
+        .flatMap(keyExpander.expand)
         .flatMap(decode[A])
   }
 }

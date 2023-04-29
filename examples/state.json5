@@ -1,0 +1,47 @@
+{
+  'mocks': [{
+    'name': "GET.cycle",
+    '$.route.forall': [
+      { '$.method.is': "GET" },
+      { '$.path.is': "/foo/cycle" }
+    ],
+    'actions': [
+      {
+        'name': "startup",
+        '$.when.state.set.["get:state"].is': -1,
+        'respond-with': { 'status': 200, '$.body.json.state': -1, '$.state-updates[].set.["get:state"]': 0 }
+      },
+      {
+        'name': "initial",
+        '$.when.state.set.["get:state"].is': 0,
+        'respond-with': {
+          'status': 200,
+          '$.body.json.state': 0,
+          '$.state-updates[].set"': { 'get:state': 1, 'get:cycling': true }
+        }
+      },
+      {
+        'name': "middle",
+        '$.when.state.set.["get:state"].is': 1,
+        'respond-with': {
+          'status': 200,
+          '$.body.json.state': 1,
+          'state-updates': [{ 'set': { 'get:state': 2 } }]
+        }
+      },
+      {
+        'name': "restart",
+        '$.when.state.set.["get:state"].is': 2,
+        'respond-with': {
+          'status': 200,
+          '$.body.json.state': 2,
+          'state-updates': [
+            { 'set': { 'get:state': 0 } },
+            { 'clear': ["get:cycling"] }
+          ]
+        }
+      }
+    ]
+  }],
+  'state': { 'get:state': -1 }
+}

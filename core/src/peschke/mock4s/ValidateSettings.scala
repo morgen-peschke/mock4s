@@ -6,7 +6,7 @@ import cats.effect.IOApp
 import cats.effect.std.Console
 import com.monovore.decline.Command
 import com.monovore.decline.Opts
-import peschke.mock4s.algebras.JsonSourceResolver
+import peschke.mock4s.algebras.{JsonKeyExpander, JsonSourceResolver}
 import peschke.mock4s.models.JsonSource
 import peschke.mock4s.models.Settings
 
@@ -15,7 +15,7 @@ object ValidateSettings extends IOApp {
     Command(name = "ValidateSettings", header = "Settings validation utility")(Opts.argument[JsonSource]())
 
   override def run(args: List[String]): IO[ExitCode] = {
-    val jsr = JsonSourceResolver.default[IO]
+    val jsr = JsonSourceResolver.default[IO](JsonKeyExpander.default[IO])
     command
       .parse(args).fold(
         Console[IO].errorln(_).as(ExitCode.Error),

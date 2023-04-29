@@ -84,12 +84,10 @@ See [`SettingsRoutes`](core/src/peschke/mock4s/SettingsRoutes.scala) for details
 Mock Definition
 ---------------
 
-Mocks are defined in a settings file, which is JSON file with a particular format. The top-level is an array, each
-entry is a mock definition. 
-
-These are ordered so, as a practical matter, only a single mock can be defined with `"route": "always"`, and it must 
-be the final mock. Such a mock is not strictly necessary, as a standard "Not Found" response will be returned if no 
-mock matches an incoming request.
+Mocks are defined in a settings file, which is JSON5 file with a particular schema. The most important part of which 
+is an array of mock definitions. These are ordered so, as a practical matter, only a single mock can be defined with 
+`"route": "always"`, and it must be the final mock. Such a mock is not strictly necessary, as a standard "Not Found" 
+response will be returned if no mock matches an incoming request.
 
 ```javascript
 [
@@ -121,7 +119,7 @@ within a mock.
 
 ### Schema
 
-The schema for `Settings` isn't really conductive to a readable JSON schema, and writing a BNF grammar would involve
+The schema for `Settings` isn't really conductive to a readable JSON5 schema, and writing a BNF grammar would involve
 duplicating a bunch of JSON grammar, so this schema will be presented in a hybrid format based on BNF.
 
 #### Conventions
@@ -360,3 +358,46 @@ ACTION := {
   "respond-with": RESPONSE_DEFINITION
 }
 ```
+
+### Sugar
+
+In order to make it easier to write some of the deeply nested structures needed for this sort of schema, 
+some syntactic sugar is provided. This is applied after parsing the JSON5, and before the resulting JSON5 is 
+decoded into settings. As a consequence of this, the sugar only provides transformations on the JSON structure, and 
+doesn't provide any capabilities that can't be done in a more verbose way.
+
+The only currently provided syntactic sugar is key expansion. This detects keys in a JSON object which are subset 
+of valid JSON paths, and expands them into a tree. This is fairly intuitive with a few examples:
+
+```json
+{
+  "input": {"$.foo.bar.baz": 5},
+  "output": {"foo": {"bar": {"baz": 5}}}
+}
+```
+
+```json
+{
+  "input": {"$.foo.[].bar": 5},
+  "output": {"foo": [{"bar": 5}]}
+}
+```
+
+```json
+{
+  "input": {"$.foo.bar.baz": [1, 2, {"$.foo.bar": 3}, 4]},
+  "output": {"foo": {"bar": {"baz": [
+    1,
+    2,
+    {"foo": {"bar": 3}},
+    4
+  ]}}}
+}
+```
+
+There are a few limitations on the paths that can be expanded:
+1. Because the expansion produces a single, branch-less, tree, explicit indexes cannot be expanded (i.e `"$.foo[1]"`)
+2. Because the result becomes part of the parent object, the first segment of the path must be a field.
+    - Good: `"$.foo"`
+    - Good: `"$.["bar"]`
+    - Bad: `"$[]"`

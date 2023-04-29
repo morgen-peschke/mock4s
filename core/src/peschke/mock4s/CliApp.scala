@@ -6,7 +6,7 @@ import cats.effect.IOApp
 import cats.syntax.all._
 import org.typelevel.log4cats.LoggerFactory
 import org.typelevel.log4cats.slf4j.Slf4jFactory
-import peschke.mock4s.algebras.JsonSourceResolver
+import peschke.mock4s.algebras.{JsonKeyExpander, JsonSourceResolver}
 
 object CliApp extends IOApp {
 
@@ -14,7 +14,9 @@ object CliApp extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] = {
     val logger = LoggerFactory.getLogger[IO]
-    implicit val jsonSourceResolver: JsonSourceResolver[IO] = JsonSourceResolver.default[IO]
+    implicit val jsonSourceResolver: JsonSourceResolver[IO] =
+      JsonSourceResolver.default[IO](JsonKeyExpander.default[IO])
+
     Config
       .parse[IO](args).load.redeemWith(
         logger.error(_)("Unable to start up") >> ExitCode.Error.pure[IO],
