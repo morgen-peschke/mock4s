@@ -1,18 +1,12 @@
 package peschke.mock4s.utils
 
-import cats.data.Chain
-import cats.data.NonEmptyChain
-import cats.data.Validated
-import cats.data.ValidatedNec
+import cats.data.{Chain, Validated, ValidatedNec}
 import cats.syntax.all._
 import peschke.mock4s.algebras.Parser
-import peschke.mock4s.algebras.Parser.ParseError
-import peschke.mock4s.algebras.Parser.Result
-import peschke.mock4s.algebras.Parser.State
+import peschke.mock4s.algebras.Parser.{ParseError, Result, State}
 import peschke.mock4s.models.JsonPath
 import peschke.mock4s.models.JsonPath.Segment
-import peschke.mock4s.models.JsonPath.Segment.BareField
-import peschke.mock4s.models.JsonPath.Segment.QuotedField
+import peschke.mock4s.models.JsonPath.Segment.{BareField, QuotedField}
 
 object JsonPathParser {
   object IdentifierChar extends supertagged.NewType[Char]
@@ -34,6 +28,8 @@ object JsonPathParser {
     }
   }
 
+  val start: Parser[Char] = Parser.fixed('$').withName("start")
+
   object bareIdentifier {
     val validChar: Parser[Option[IdentifierChar]] =
       Parser.accumulating[Option[IdentifierChar]] { input =>
@@ -51,7 +47,7 @@ object JsonPathParser {
 
     val bareFieldParser: Parser[Segment] = validChar.repeatWhileSomeNec.map { fieldChars =>
       BareField(fieldChars.map(IdentifierChar.raw).mkString_(""))
-    }
+    }.withEnclosingName.widen
   }
 
   object quotedIdentifier {
@@ -123,7 +119,7 @@ object JsonPathParser {
         }
       }
 
-    val quotedSegmentParser: Parser[Segment] = validChar.repeatWhileSomeNec.map { fieldChars =>
+    val quotedSegmentParser: Parser[Segment] = validChar.repeatWhileSome.map { fieldChars =>
       QuotedField(fieldChars.map(IdentifierChar.raw).mkString_(""))
     }
   }
@@ -152,37 +148,25 @@ object JsonPathParser {
     val arrayBraces: Parser[Segment] = Parser.fixed("[]").as[Segment](Segment.DownArray).withEnclosingName
     val indexBraces: Parser[Segment] = ((openBrace *> arrayIndex) <* closeBrace).withEnclosingName
 
-    val downArray: Parser[Segment] = Parser.findValid(arrayBraces, indexBraces)
+    val downArray: Parser[Segment] = Parser.findValid(arrayBraces, indexBraces).withEnclosingName
 
     val quotedField: Parser[Segment] =
-      (startOfQuotedField *> quotedIdentifier.quotedSegmentParser) <* endOfQuotedField
+      ((startOfQuotedField *> quotedIdentifier.quotedSegmentParser) <* endOfQuotedField).withEnclosingName
 
-    val chainableSegments: Parser[Chain[Segment]] =
-      Parser.findValid[Segment](quotedField, downArray).repeated.withEnclosingName
-
-    val fieldAndChainedSegments: Parser[NonEmptyChain[Segment]] =
-      (Parser.findValid(quotedField, bareIdentifier.bareFieldParser) ~+:> chainableSegments).withEnclosingName
-
-    val arrayAndChainedSegments: Parser[NonEmptyChain[Segment]] =
-      (downArray ~+:> chainableSegments).withEnclosingName
-
-    val chunk: Parser[NonEmptyChain[Segment]] =
-      period *>
-        Parser.findValid(arrayAndChainedSegments, fieldAndChainedSegments).withEnclosingName
-
-    val segmentParser: Parser[NonEmptyChain[Segment]] =
-      chunk.repeatedNec.map(_.flatten).withEnclosingName
+    val segment: Parser[Segment] =
+      Parser.findValid(
+        (period.? *> quotedField).withName("quoted"),
+        (period *> bareIdentifier.bareFieldParser).withName("bare"),
+        (period.? *> downArray).withName("array")
+      ).withEnclosingName
   }
 
-  val parser: Parser[Chain[Segment]] =
+  val parser: Parser[JsonPath] =
     Parser.findValid(
       Parser.End.as(Chain.empty[Segment]).withName("empty path"),
-      (Parser.fixed('.') *> Parser.End).as(Chain.empty[Segment]).withName("root path"),
-      (jsonSegment.segmentParser <* Parser.End).map(result => result.toChain)
-    )
+      (start *> Parser.End).as(Chain.empty[Segment]).withName("root path"),
+      (start *> jsonSegment.segment.repeatedNec.map(_.toChain) <* Parser.End).withName("path with segments")
+    ).map(JsonPath(_))
 
-  def parse(raw: String): ValidatedNec[ParseError, JsonPath] =
-    parser.parseV(raw).map { segments =>
-      JsonPath(segments.value)
-    }
+  def parse(raw: String): ValidatedNec[ParseError, JsonPath] = parser.parseV(raw).map(_.value)
 }

@@ -45,7 +45,7 @@ final case class JsonPath(segments: Chain[JsonPath.Segment]) {
 
   def render: String =
     segments
-      .foldLeft(new StringBuilder() -> none[Segment]) {
+      .foldLeft(new StringBuilder("$") -> none[Segment]) {
         case ((b, None), s)          => b.append('.').append(s.show) -> s.some
         case ((b, Some(last)), curr) =>
           (last, curr) match {
@@ -89,11 +89,16 @@ object JsonPath                                              {
         targets.flatMap(_.asArray.fold(Chain.empty[Json])(Chain.fromSeq))
     }
   }
-  object Segment       {
-    final case class BareField(name: String)   extends Segment
-    final case class QuotedField(name: String) extends Segment
-    final case class AtIndex(value: Int)       extends Segment
-    case object DownArray                      extends Segment
+  object Segment {
+    sealed trait FieldSegment extends Segment {
+      def name: String
+    }
+    sealed trait ArraySegment extends Segment
+
+    final case class BareField(name: String)   extends Segment with FieldSegment
+    final case class QuotedField(name: String) extends Segment with FieldSegment
+    final case class AtIndex(value: Int)       extends Segment with ArraySegment
+    case object DownArray                      extends Segment with ArraySegment
 
     def of(i: Int): Segment = AtIndex(i)
     def of(str: String): Segment =

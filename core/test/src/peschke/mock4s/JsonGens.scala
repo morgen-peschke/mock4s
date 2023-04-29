@@ -44,21 +44,22 @@ object JsonGens {
 
   val objectKeys: Gen[String] = Gen.resize(10, nonEmptyString(Gen.alphaNumChar))
   val scalars: Gen[Json] = Gen.oneOf(jsonNulls, jsonBooleans, jsonNumbers, Gen.resize(10, jsonStrings))
-  val configs: Gen[JsonGenConfig] = Gen.sized { size =>
+  def configs(objectKeysGen: Gen[String], scalarsGen: Gen[Json]): Gen[JsonGenConfig] = Gen.sized { size =>
     for {
-      maxDepth    <- Gen.chooseNum(0, size)
-      minDepth    <- if (maxDepth <= 2) Gen.const(2) else Gen.chooseNum(2, maxDepth)
-      arrayWidth  <- Gen.chooseNum(0, size)
+      maxDepth <- Gen.chooseNum(0, size)
+      minDepth <- if (maxDepth <= 2) Gen.const(2) else Gen.chooseNum(2, maxDepth)
+      arrayWidth <- Gen.chooseNum(0, size)
       objectWidth <- Gen.chooseNum(0, size)
     } yield JsonGenConfig(
       maxDepth = maxDepth,
       minDepth = minDepth,
       maxArrayWidth = arrayWidth,
       maxObjectWidth = objectWidth,
-      keys = objectKeys,
-      scalars = scalars
+      keys = objectKeysGen,
+      scalars = scalarsGen
     )
   }
+  val configs: Gen[JsonGenConfig] = configs(objectKeys, scalars)
 
   val terminals: Gen[Json] = JsonGenConfig(0, 0, 0, 0, objectKeys, scalars).mkGen
 

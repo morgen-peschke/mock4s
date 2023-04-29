@@ -71,6 +71,14 @@ trait Parser[Output] { self =>
       NonEmptyChain.fromChainPrepend(first, rest)
     }
 
+  def ? : Parser[Option[Output]] =
+    Parser.namedInstance(show"($name)?") { input =>
+      self.parseE(input) match {
+        case Left(_) => Parser.Result(none[Output], input).asRight
+        case Right(value) => value.map(_.some).asRight
+      }
+    }
+
   def ~>[O2](next: Parser[O2]): Parser[(Output, O2)] =
     Parser.namedInstance(show"$name ~> ${next.name}") { input =>
       for {
@@ -182,14 +190,15 @@ object Parser        {
     implicit def show: Show[ParseError] = Show.show { case ParseError(message, State(_, index, history)) =>
       val maxIndexWidth = (history.map(_.index).maximumOption.getOrElse(0) % 10).abs.max(1)
       val maxParserNameWidth = history.map(h => ParserName.raw(h.parser).length).maximumOption.getOrElse(0).max(1)
-      val historyStr = history
-        .map { h =>
-          s"%${maxIndexWidth}d :: %-${maxParserNameWidth}s << %s".format(
-            h.index,
-            h.parser,
-            h.truncatedInput(20)
-          )
-        }.mkString_("\n", "\n", "\n")
+      val historyStr =
+        history
+          .map { h =>
+            s"%${maxIndexWidth}d :: %-${maxParserNameWidth}s << %s".format(
+              h.index,
+              h.parser,
+              h.truncatedInput(20)
+            )
+          }.distinct.mkString_("\n", "\n", "\n")
       show"Parse error at index $index, $message:$historyStr"
     }
   }
@@ -257,16 +266,32 @@ object Parser        {
   }
 
   implicit final class ChainParserOps[Output](private val parser: Parser[Chain[Output]]) extends AnyVal {
-    def ~:+>[O2 <: Output](next: Parser[O2]): Parser[NonEmptyChain[Output]] = {
+    def ~++>[O2 <: Output](next: Parser[Chain[O2]]): Parser[Chain[Output]] = {
       (parser ~> next)
-        .map { case (chain, single) =>
-          NonEmptyChain.fromChainAppend(chain, single)
-        }
-        .withName(s"${parser.name} ~:+> ${next.name}")
+        .map(t => t._1 ++ t._2)
+        .withName(s"${parser.name} ~++> ${next.name}")
+    }
+  }
+
+  implicit final class NonEmptyChainParserOps[Output](private val parser: Parser[NonEmptyChain[Output]]) extends AnyVal {
+    def ~++>[O2 <: Output](next: Parser[Chain[O2]]): Parser[NonEmptyChain[Output]] = {
+      (parser ~> next)
+        .map(t => t._1.appendChain(t._2))
+        .withName(s"${parser.name} ~++> ${next.name}")
     }
   }
 
   implicit final class OptParserOps[Output](private val parser: Parser[Option[Output]]) extends AnyVal {
+    def force: Parser[Output] =
+      Parser.namedInstance[Output](show"(${parser.name})!") { input =>
+        parser.attemptE(input).flatMap { result =>
+          result.value match {
+            case Some(value) => Parser.Result(value, result.state).asRight
+            case None => ParseError.one(s"expected ${parser.name} to succeed at least once", input).asLeft
+          }
+        }
+      }
+
     def repeatWhileSome: Parser[Chain[Output]] =
       Parser.namedInstance[Chain[Output]](show"${parser.name}.repeatWhileSome") { input =>
         @tailrec
@@ -281,22 +306,7 @@ object Parser        {
       }
 
     def repeatWhileSomeNec: Parser[NonEmptyChain[Output]] =
-      Parser.namedInstance(show"${parser.name}.repeatWhileSome") { input =>
-        @tailrec
-        def loop(state: State, accum: NonEmptyChain[Output]): Parser.Result[NonEmptyChain[Output]] =
-          parser.parseE(state) match {
-            case Left(_)                                     => Parser.Result(accum, state)
-            case Right(Parser.Result(Some(value), newState)) => loop(newState, accum.append(value))
-            case Right(Parser.Result(None, _))               => Parser.Result(accum, state)
-          }
-
-        parser.parseE(input).flatMap { result =>
-          result.value match {
-            case Some(value) => loop(result.state, NonEmptyChain.one(value)).asRight
-            case None        => ParseError.one("unexpected end of input", input).asLeft
-          }
-        }
-      }
+      (parser.force ~+:> parser.repeatWhileSome).withName("repeatWhileSomeNec")
   }
 
   implicit def catsInstances: Monad[Parser[*]] = new Monad[Parser[*]] {

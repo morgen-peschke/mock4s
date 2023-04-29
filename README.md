@@ -124,6 +124,22 @@ within a mock.
 The schema for `Settings` isn't really conductive to a readable JSON schema, and writing a BNF grammar would involve
 duplicating a bunch of JSON grammar, so this schema will be presented in a hybrid format based on BNF.
 
+#### Conventions
+
+- `UPPER_SNAKE_CASE` is used for identifiers
+- `FOO?` is an optional modifier to a base identifier
+- `FOO*` is `FOO` repeated any number of times
+- `FOO+` is `FOO` repeated at least once
+- `FOO(bar)` means `FOO` acts as a function, producing a modifier equivalent to what text replacement would produce.
+  ```
+  QUOTE(value) := "'" value "'"
+  ESCAPE := QUOTE("\\")
+  ```
+  Would be equivalent to `ESCAPE := "'" "\\" "'"`
+- `package.path.ClassName` means the definition of this is is deferred to the referenced class
+- `()` is used for grouping when necessary
+- Anything else (like `[]`) is unquoted to cut down on noise.
+
 #### Definitions
 ```
 "text"            := the literal JSON "text", commonly as keys or fixed values
@@ -140,19 +156,19 @@ CI_STRING         := valid JSON string, treated as case-insensitive
 BARE_STRING       := valid JSON string, just without the enclosing double-quotes
 REGEX             := valid JSON string, containing a valid regular expression
  
-BASE64_BARE          := See https://datatracker.ietf.org/doc/html/rfc4648#section-4
-BASE64_STRING        := '"' [BASE64_BARE] '"'
+BASE64_BARE   := See https://datatracker.ietf.org/doc/html/rfc4648#section-4
+BASE64_STRING := '"' BASE64_BARE? '"'
 
 JSON              := any valid JSON
-[ELEM...]         := JSON array of any number of values defined by ELEM
+[ ELEM* ]         := JSON array of any number of values defined by ELEM
 { JKEY: VALUE }   := JSON object with key defined by KEY and value defined by VALUE
-{ KEY_VALUE... }  := JSON object with any number of key/value pairs defined by KEY_VALUE
+{ KEY_VALUE* }    := JSON object with any number of key/value pairs defined by KEY_VALUE
 DEFINITION(param) := parameterized route (to avoid a bunch of repetition)
 ```
 
 #### Settings Schema :: `SETTINGS`
 ```
-MOCKS_ONLY := [MOCK...]
+MOCKS_ONLY := [ MOCK* ]
 MOCKS_AND_STATE := { "mocks": MOCKS_ONLY, "state": STATE }
 SETTINGS := MOCKS_ONLY | MOCKS_AND_STATE
 ```
@@ -160,7 +176,7 @@ SETTINGS := MOCKS_ONLY | MOCKS_AND_STATE
 #### State Schema :: `STATE`
 ```
 STATE_ENTRY := JKEY: JSON
-STATE := { KEY_VALUE... }
+STATE := { KEY_VALUE* }
 ```
 
 #### Mocks Schema :: `MOCK`
@@ -168,7 +184,7 @@ STATE := { KEY_VALUE... }
 MOCK := {
   "name": JSTRING,
   "route": ROUTE,
-  "actions": [ACTION...]
+  "actions": [ ACTION* ]
 }
 ```
 
@@ -180,18 +196,18 @@ NEVER  := "fail" | "never"
 
 #### Combinators Predicate Schema :: `COMBINATORS(predicate)`
 ```
-FOR_ALL(predicate)     := { "forall": [X...] }
-EXISTS(predicate)      := { "exists": [X...] }
+FOR_ALL(predicate)     := { "forall": [ X* ] }
+EXISTS(predicate)      := { "exists": [ X* ] }
 NOT(predicate)         := { "!": X }
-COMBINATORS(predicate) := FOR_ALL(predicate) | EXISTS(predicate) | NOT(predicate)
+COMBINATORS(predicate) := { "forall": [ X* ] }
+                        | { "exists": [ X* ] }
+                        | { "!": X }
 ```
 
 #### Equality Predicate Schema :: `EQ(value)`
 ```
-IS(value)     := { "forall": [value...] }
-EXISTS(value) := { "exists": [value...] }
-NOT(value)    := { "!": value }
-EQ(value)     := IS(value) | IN(value)
+EQ(value)  := { "is": value* }
+            | { "in": [ value* ] }
 ```
 
 #### Order Predicate Schema :: `ORDER(value)`
@@ -211,6 +227,30 @@ STRING_PREDICATE := FIXED
                   | { "matches": REGEX }
                   | EQ(java.lang.String) 
                   | COMBINATORS(STRING_PREDICATE)
+```
+
+#### JSON Path Schema :: `JSON_PATH`
+```
+DIGIT  := 0..9
+LETTER_OR_DIGIT := java.lang.Char#isLetterOrDigit
+
+VALID_QUOTED_FIELD_CHAR := '\\' | '\b' | '\f' | '\n' | '\t'
+                         | '\u' DIGIT DIGIT DIGIT DIGIT
+                         | java.lang.Char
+
+DOWN_ARRAY := [ DIGIT* ]
+            
+BARE_FIELD       := LETTER_OR_DIGIT | - | _
+BARE_FIELD_CHAIN := BARE_FIELD (. BARE_FIELD)*
+QUOTED_FIELD     := '["' VALID_QUOTED_FIELD_CHAR '"]'
+
+SEGMENT := .? DOWN_ARRAY
+         | .? QUOTED_FIELD
+         | . BARE_FIELD
+
+JSON_PATH := $ SEGMENT*
+           | ''
+
 ```
 
 #### JSON Predicate Schema :: `JSON_PREDICATE`
@@ -240,9 +280,10 @@ STATE_PREDICATE := { "cleared": JKEY }
 ```
 METHOD_PRED := FIXED | EQ(org.http4s.Method) | COMBINATORS(METHOD_PRED)
 
+SLASH               := /
 PATH_SEGMENT        := '*' | BARE_STRING
-RELATIVE_PATH       := PATH_SEGMENT [ "/" PATH_SEGMENT ]
-ABSOLUTE_PATH       := '/' RELATIVE_PATH ['/']
+RELATIVE_PATH       := PATH_SEGMENT (SLASH PATH_SEGMENT)?
+ABSOLUTE_PATH       := SLASH RELATIVE_PATH SLASH?
 SANITIZED_PATH      := ABSOLUTE_PATH | RELATIVE_PATH
 SANITIZED_PREDICATE := { "sanitized": '"' SANITIZED_PATH '"' }
 
@@ -273,7 +314,7 @@ BODY_PREDICATE := "empty"
 
 REQUEST_PREDICATE := FIXED 
                    | { "route": ROUTE_PREDICATE } 
-                   | { "headers": [ HEADER_PREDICATE... ] } 
+                   | { "headers": [ HEADER_PREDICATE* ] } 
                    | { "body": BODY_PREDICATE }
                    | { "state": STATE_PREDICATE } 
                    | COMBINATORS(REQUEST_PREDICATE)
@@ -290,8 +331,8 @@ BODY_DEFINITION := "empty" | TEXT_BODY | JSON_BODY | RAW_BODY
 #### State Transition Schema :: `STATE_TRANSITION`
 ```
 STATE_ENTRY := JKEY: JSON
-STATE_TRANSITION := { "clear": [JKEY...] }
-                  | { "set": { STATE_ENTRY... } }
+STATE_TRANSITION := { "clear": [ JKEY* ] }
+                  | { "set": { STATE_ENTRY* } }
 ```
 
 #### Action Schema :: `ACTION`
@@ -307,9 +348,9 @@ HEADER := { "name": JSTRING, "value: JSTRING }
 
 RESPONSE_DEFINITION := {
   "status": 200..599,
-  [ "httpVersion": HTTP_VERSION, ]
-  ["headers": [HEADER...],]
-  ["state": [STATE_TRANSITION...],]
+  ("httpVersion": HTTP_VERSION,)?
+  ("headers": [ HEADER* ],)?
+  ("state": [ STATE_TRANSITION* ],)?
   "body": BODY_DEFINITION
 }
 

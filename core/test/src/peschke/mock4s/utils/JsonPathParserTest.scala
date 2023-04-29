@@ -9,6 +9,7 @@ import munit.ScalaCheckSuite
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Gen
 import org.scalacheck.Prop.forAll
+import peschke.mock4s.MUnitCats
 import peschke.mock4s.models.JsonPath
 import peschke.mock4s.models.JsonPath.Segment
 import peschke.mock4s.models.JsonPath.Segment.AtIndex
@@ -16,12 +17,12 @@ import peschke.mock4s.models.JsonPath.Segment.BareField
 import peschke.mock4s.models.JsonPath.Segment.DownArray
 import peschke.mock4s.models.JsonPath.Segment.QuotedField
 import peschke.mock4s.utils.JsonPathParserTest.TestInput
-import peschke.mock4s.utils.JsonPathParserTest.atIndexSegments
+import peschke.mock4s.utils.JsonPathParserTest.atIndexes
 import peschke.mock4s.utils.JsonPathParserTest.bareFields
-import peschke.mock4s.utils.JsonPathParserTest.downArraySegments
+import peschke.mock4s.utils.JsonPathParserTest.downArrays
 import peschke.mock4s.utils.JsonPathParserTest.quotedFields
 
-class JsonPathParserTest extends ScalaCheckSuite {
+class JsonPathParserTest extends ScalaCheckSuite with MUnitCats {
 
   override val scalaCheckInitialSeed = "TzBo0TbyifUqctzySl5qSmlufMjegKiMXwomwl3ModG="
 
@@ -29,26 +30,30 @@ class JsonPathParserTest extends ScalaCheckSuite {
     TestInput("", Chain.empty).run()
   }
 
-  test("parse <.>") {
-    TestInput(".", Chain.empty).run()
+  test("parse <$>") {
+    TestInput("$", Chain.empty).run()
   }
 
-  test("parse <.[]>") {
-    TestInput(".[]", Chain.one(DownArray)).run()
+  test("parse <$.[]>") {
+    TestInput("$.[]", Chain.one(DownArray)).run()
+  }
+
+  test("parse <$[]>") {
+    TestInput("$[]", Chain.one(DownArray)).run()
   }
 
   property("parse bare field selections") {
     val gen = Gen.resize(20, Gen.nonEmptyListOf(bareFields)).map(Chain.fromSeq).map { segmentsAndRaws =>
       val (rawStrings, segments) = segmentsAndRaws.unzip
-      TestInput(rawStrings.mkString_(".", ".", ""), segments)
+      TestInput(rawStrings.mkString_("$.", ".", ""), segments)
     }
     forAll(gen)(_.run())
   }
 
   property("parse indexing into arrays") {
-    val gen = Gen.resize(20, Gen.nonEmptyListOf(atIndexSegments)).map(Chain.fromSeq).map { segmentsAndRaws =>
+    val gen = Gen.resize(20, Gen.nonEmptyListOf(atIndexes)).map(Chain.fromSeq).map { segmentsAndRaws =>
       val (rawStrings, segments) = segmentsAndRaws.unzip
-      TestInput(rawStrings.mkString_(".", ".", ""), segments)
+      TestInput(rawStrings.mkString_("$.", ".", ""), segments)
     }
     forAll(gen)(_.run())
   }
@@ -56,28 +61,41 @@ class JsonPathParserTest extends ScalaCheckSuite {
   property("parse quoted field selections") {
     val gen = Gen.resize(20, Gen.nonEmptyListOf(quotedFields)).map(Chain.fromSeq).map { segmentsAndRaws =>
       val (rawStrings, segments) = segmentsAndRaws.unzip
-      TestInput(rawStrings.mkString_(".", ".", ""), segments)
+      TestInput(rawStrings.mkString_("$.", ".", ""), segments)
     }
     forAll(gen)(_.run())
   }
 
   property("parse chained selections") {
-    val chainableSegments = Gen.oneOf(quotedFields, atIndexSegments, downArraySegments)
+    val chainableSegments = Gen.oneOf(quotedFields, atIndexes, downArrays)
     val gen = for {
-      base    <- Gen.oneOf[(String, Segment)](bareFields, quotedFields, atIndexSegments, downArraySegments)
+      base    <- Gen.oneOf[(String, Segment)](bareFields, quotedFields, atIndexes, downArrays)
       chained <- Gen.resize(20, Gen.nonEmptyListOf(chainableSegments)).map(Chain.fromSeq)
     } yield {
       val (baseRaw, baseSegment) = base
       val (chainedRaw, chainedSegments) = chained.unzip
       TestInput(
-        s".$baseRaw${chainedRaw.mkString_("")}",
+        s"$$.$baseRaw${chainedRaw.mkString_("")}",
         baseSegment +: chainedSegments
       )
     }
     forAll(gen)(_.run())
   }
+
+  property("parse the output of JsonPath#render") {
+    val segments = Gen.oneOf(
+      quotedFields.map(_._2),
+      bareFields.map(_._2),
+      atIndexes.map(_._2),
+      downArrays.map(_._2)
+    )
+    val gen = Gen.listOf(segments).map(s => JsonPath.fromChain(Chain.fromSeq(s))).map { jsonPath =>
+      TestInput(jsonPath.render, jsonPath.segments)
+    }
+    forAll(gen)(_.run())
+  }
 }
-object JsonPathParserTest extends Assertions {
+object JsonPathParserTest extends Assertions with MUnitCats {
   final case class TestInput(raw: String, path: Chain[Segment]) {
     val expected: JsonPath = JsonPath(path)
 
@@ -86,7 +104,7 @@ object JsonPathParserTest extends Assertions {
         case Validated.Invalid(e)    =>
           fail(show"Unable to parse <$raw>:${e.mkString_("\n  ", "\n  ", "\n")}")
         case Validated.Valid(actual) =>
-          assertEquals(actual, expected)(loc, implicitly)
+          assertEq(actual, expected)(implicitly, implicitly, loc)
       }
     }
   }
@@ -130,10 +148,10 @@ object JsonPathParserTest extends Assertions {
       }
   }
 
-  val atIndexSegments: Gen[(String, AtIndex)] =
+  val atIndexes: Gen[(String, AtIndex)] =
     Gen.chooseNum(0, 9999).map { index =>
       (s"[$index]", AtIndex(index))
     }
 
-  val downArraySegments: Gen[(String, DownArray.type)] = Gen.const("[]" -> DownArray)
+  val downArrays: Gen[(String, DownArray.type)] = Gen.const("[]" -> DownArray)
 }
