@@ -5,28 +5,6 @@ import mill.scalalib.publish._
 
 val Scala13 = "2.13.8"
 
-val Decline = ivy"com.monovore::decline:2.3.0"
-val SuperTagged = ivy"org.rudogma::supertagged:2.0-RC2"
-val Enumeratum = ivy"com.beachape::enumeratum:1.7.0"
-val Circe = Set(
-  ivy"io.circe::circe-core:0.14.1",
-  ivy"io.circe::circe-parser:0.14.1"
-)
-val Ciris = ivy"is.cir::ciris:3.1.0"
-val Http4s = Set(
-  ivy"org.http4s::http4s-ember-client:1.0.0-M39",
-  ivy"org.http4s::http4s-ember-server:1.0.0-M39",
-  ivy"org.http4s::http4s-dsl:1.0.0-M39",
-  ivy"org.http4s::http4s-circe:1.0.0-M39"
-)
-val Log4Cats = ivy"org.typelevel::log4cats-slf4j:2.5.0"
-val MUnit = Set(
-  ivy"org.scalameta::munit:0.7.29",
-  ivy"org.scalacheck::scalacheck:1.17.0",
-  ivy"org.scalameta::munit-scalacheck:0.7.29"
-)
-val SourceCode = ivy"com.lihaoyi::sourcecode:0.3.0"
-
 trait StyleModule extends ScalafmtModule with ScalafixModule {
   override def scalafixIvyDeps = super.scalafixIvyDeps() ++ Agg(
     ivy"com.github.liancheng::organize-imports:0.6.0",
@@ -82,12 +60,29 @@ object core extends CommonModule {
   override def scalaVersion: T[String] = Scala13
 
   override def ivyDeps =
-    Agg(SourceCode, SuperTagged, Enumeratum, Ciris, Log4Cats, Decline) ++
-      Agg.from(Http4s ++ Circe)
+    Agg(
+      ivy"com.beachape::enumeratum:1.7.0",
+      ivy"com.lihaoyi::sourcecode:0.3.0",
+      ivy"com.monovore::decline:2.3.0",
+      ivy"de.marhali:json5-java:2.0.0",
+      ivy"io.circe::circe-core:0.14.1",
+      ivy"io.circe::circe-parser:0.14.1",
+      ivy"is.cir::ciris:3.1.0",
+      ivy"org.http4s::http4s-circe:1.0.0-M39",
+      ivy"org.http4s::http4s-dsl:1.0.0-M39",
+      ivy"org.http4s::http4s-ember-client:1.0.0-M39",
+      ivy"org.http4s::http4s-ember-server:1.0.0-M39",
+      ivy"org.rudogma::supertagged:2.0-RC2",
+      ivy"org.typelevel::log4cats-slf4j:2.5.0"
+    )
 
   override def runIvyDeps = Agg(ivy"ch.qos.logback:logback-classic:1.2.10")
 
   object test extends Tests with TestModule.Munit with StyleModule {
-    override def ivyDeps: T[Agg[Dep]] = super.ivyDeps() ++ Agg.from(MUnit)
+    override def ivyDeps: T[Agg[Dep]] = super.ivyDeps() ++ Agg(
+      ivy"org.scalacheck::scalacheck:1.17.0",
+      ivy"org.scalameta::munit-scalacheck:0.7.29",
+      ivy"org.scalameta::munit:0.7.29"
+    )
   }
 }

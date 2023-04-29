@@ -5,6 +5,7 @@ import io.circe.Json
 import io.circe.JsonNumber
 import io.circe.JsonObject
 import io.circe.Printer
+import peschke.mock4s.models.FormatterConfig.{Delta, MaxWidth, SortKeys, TightArrays, TightObjects}
 
 import scala.annotation.switch
 
@@ -12,38 +13,32 @@ trait JsonFormatter  {
   def format(json: Json): String
 }
 object JsonFormatter {
-  object IndentDelta  extends supertagged.NewType[Int]
-  type IndentDelta = IndentDelta.Type
-  object MaxWidth     extends supertagged.NewType[Int]
-  type MaxWidth = MaxWidth.Type
-  object TightObjects extends supertagged.NewType[Boolean]
-  type TightObjects = TightObjects.Type
-  object TightArrays  extends supertagged.NewType[Boolean]
-  type TightArrays = TightArrays.Type
-
   val compact: JsonFormatter = new UsingCircePrinter(Printer.noSpaces)
 
-  def pretty(indent: IndentDelta, sortKeys: Boolean): JsonFormatter =
-    new UsingCircePrinter(Printer.indented(" " * IndentDelta.raw(indent), sortKeys))
+  def pretty(indent: Delta, sortKeys: SortKeys): JsonFormatter =
+    new UsingCircePrinter(Printer.indented(" " * Delta.raw(indent), SortKeys.raw(sortKeys)))
 
   private final class UsingCircePrinter(printer: Printer) extends JsonFormatter {
     override def format(json: Json): String = json.printWith(printer)
   }
 
+  def terse(indent: Delta, sortKeys: SortKeys, maxWidth: MaxWidth, tightDelims: (TightArrays, TightObjects))
+  : JsonFormatter = terse(indent, sortKeys, maxWidth, tightDelims._1, tightDelims._2)
+
   def terse
-    (indent: IndentDelta, sortKeys: Boolean, maxWidth: MaxWidth, tightArrays: TightArrays, tightObjects: TightObjects)
+    (indent: Delta, sortKeys: SortKeys, maxWidth: MaxWidth, tightArrays: TightArrays, tightObjects: TightObjects)
     : JsonFormatter =
     new JsonFormatter {
       override def format(json: Json): String =
         writeJson(json, FormatterState.empty(maxWidth)).builder.result()
 
-      private val openArray = if (TightArrays.raw(tightArrays)) "[" else "[ "
-      private val closeArray = if (TightArrays.raw(tightArrays)) "]" else " ]"
-      private val openObject = if (TightObjects.raw(tightObjects)) "{" else "{ "
-      private val closeObject = if (TightObjects.raw(tightObjects)) "}" else " }"
+      private val openArray = if (tightArrays === TightArrays.Enabled) "[" else "[ "
+      private val closeArray = if (tightArrays === TightArrays.Enabled) "]" else " ]"
+      private val openObject = if (tightObjects === TightObjects.Enabled) "{" else "{ "
+      private val closeObject = if (tightObjects === TightObjects.Enabled) "}" else " }"
 
-      private val arrayBraceWidth = if (TightArrays.raw(tightArrays)) 1 else 2
-      private val objectCurlyWidth = if (TightObjects.raw(tightObjects)) 1 else 2
+      private val arrayBraceWidth = if (tightArrays === TightArrays.Enabled) 1 else 2
+      private val objectCurlyWidth = if (tightObjects === TightObjects.Enabled) 1 else 2
 
       private def isScalar(json: Json): Boolean = !json.isArray && !json.isObject
 
@@ -136,7 +131,7 @@ object JsonFormatter {
       private def writeObject(obj: JsonObject, state: FormatterState): FormatterState =
         if (obj.isEmpty) state.append("{}")
         else {
-          val elements = (if (sortKeys) obj.toVector.sortBy(_._1) else obj.toVector).map { case (key, value) =>
+          val elements = (if (sortKeys === SortKeys.Enabled) obj.toVector.sortBy(_._1) else obj.toVector).map { case (key, value) =>
             val entryState = state.indentAndRecurse(indent)
             writeString(key, entryState)
             entryState.append(": ")
@@ -229,9 +224,9 @@ object JsonFormatter {
       this
     }
 
-    def indentAndRecurse(indentDelta: IndentDelta): FormatterState = FormatterState(
+    def indentAndRecurse(indentDelta: Delta): FormatterState = FormatterState(
       builder = new StringBuilder(),
-      currentIndent = currentIndent + IndentDelta.raw(indentDelta),
+      currentIndent = currentIndent + Delta.raw(indentDelta),
       maxWidth = maxWidth,
       isMultiLine = false
     )
