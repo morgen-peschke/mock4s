@@ -11,6 +11,7 @@ import peschke.mock4s.algebras.PredicateChecker
 import peschke.mock4s.algebras.PredicateChecker.syntax._
 import peschke.mock4s.models.|+|
 import peschke.mock4s.models.|+|.syntax.LiftOps
+import peschke.mock4s.models.JsonObjectTuple
 import peschke.mock4s.utils.Circe._
 
 sealed trait QueryTest {
